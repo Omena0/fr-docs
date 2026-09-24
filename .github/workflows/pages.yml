@@ -1,0 +1,28 @@
+name: Deploy docs to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and Deploy fr-docs Site
+        uses: ./
+        with:
+          docs-dir: 'docs'
+          output-dir: 'docs/site'

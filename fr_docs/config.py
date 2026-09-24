@@ -2,9 +2,7 @@
 """Configuration loading for the fr-docs documentation builder."""
 
 import json
-import os
 from pathlib import Path
-
 
 DEFAULT_CONFIG = {
     "project_name": "Project Name",
@@ -43,6 +41,10 @@ def load_config(config_path=None):
     """Load and validate the documentation builder configuration."""
     if config_path is None:
         config_path = Path.cwd() / "config.json"
+        if not config_path.exists():
+            docs_config = Path.cwd() / "docs" / "config.json"
+            if docs_config.exists():
+                config_path = docs_config
     else:
         config_path = Path(config_path)
 
@@ -53,7 +55,9 @@ def load_config(config_path=None):
         config = _merge(DEFAULT_CONFIG, loaded)
 
     config_path = config_path.resolve()
-    docs_dir = Path(config["docs_dir"]).resolve() if config["docs_dir"] else config_path.parent
+    docs_dir = (
+        Path(config["docs_dir"]).resolve() if config["docs_dir"] else config_path.parent
+    )
     src_dir = docs_dir / config["src_dir"] if config["src_dir"] else docs_dir / "src"
     out_dir = docs_dir / config["out_dir"] if config["out_dir"] else docs_dir / "site"
 

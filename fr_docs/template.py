@@ -90,7 +90,7 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None):
         '<div class="search-box">',
         '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
         '  <input type="text" id="sidebar-search" placeholder="Search docs…">',
-        '</div>',
+        "</div>",
     ]
 
     for section_name, pages in sidebar_config:
@@ -104,12 +104,12 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None):
             )
         )
         for slug, label in pages:
-            active = ' class="active"' if slug == current_slug else ''
-            href = slug_output_name(slug)
+            active = ' class="active"' if slug == current_slug else ""
+            href = slug_output_name(slug_basename(slug))
             display = f'{label} <span class="ext-tag">ext</span>' if is_ext else label
             parts.append(f'    <li><a href="{href}"{active}>{display}</a></li>')
 
-        parts.extend(('  </ul>', '</div>'))
+        parts.extend(("  </ul>", "</div>"))
 
     return "\n".join(parts)
 
@@ -129,22 +129,25 @@ def build_toc_sidebar(toc_tokens, current_slug, sidebar_config, ext_sections=Non
         toc_parts.append(f'    <li><a href="#{token["id"]}">{token["name"]}</a></li>')
         children = token.get("children", [])
         if children:
-            toc_parts.append(f'    <li><ul class="toc-sub" data-parent="{token["id"]}">')
+            toc_parts.append(
+                f'    <li><ul class="toc-sub" data-parent="{token["id"]}">'
+            )
             toc_parts.extend(
                 f'      <li><a href="#{child["id"]}">{child["name"]}</a></li>'
                 for child in children
             )
-            toc_parts.append('    </ul></li>')
+            toc_parts.append("    </ul></li>")
 
-    toc_parts.extend(('  </ul>', '</div>'))
+    toc_parts.extend(("  </ul>", "</div>"))
 
-    search_end = nav.find('</div>') + len('</div>')
-    return nav[:search_end] + '\n' + '\n'.join(toc_parts) + '\n' + nav[search_end:]
+    search_end = nav.find("</div>") + len("</div>")
+    return nav[:search_end] + "\n" + "\n".join(toc_parts) + "\n" + nav[search_end:]
 
 
 def _section_key(name):
     import re
-    return re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
 # These will be imported from the main build module

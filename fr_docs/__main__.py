@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Entry point for fr-docs CLI.
 
 Usage:
@@ -9,7 +8,6 @@ Usage:
 import sys
 
 from fr_docs.build import main
-
 
 if __name__ == "__main__":
     # If called as `python -m fr_docs build ...`, sys.argv[1] will be "build"

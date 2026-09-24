@@ -1,7 +1,7 @@
 {
   "project_name": "Fr-docs",
-  "project_url": "",
-  "docs_dir": "docs",
+  "project_url": "https://github.com/Omena0/fr-docs",
+  "docs_dir": ".",
   "site_path_prefix": "/",
   "sidebar": [
     ["Introduction", [
@@ -27,7 +27,7 @@
     ]]
   ],
   "build": {
-    "workers": 4,
+    "workers": 6,
     "minify_html": true,
     "optimize_html": true,
     "zstd_level": 22,

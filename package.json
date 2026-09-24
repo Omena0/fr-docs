@@ -1,0 +1,10 @@
+{
+  "name": "fr-docs-npm-tools",
+  "description": "NPM tooling for fr-docs documentation builds",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "html-minifier-next": "6.1.2",
+    "critical": "7.2.1"
+  }
+}

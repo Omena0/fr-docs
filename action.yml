@@ -1,0 +1,70 @@
+name: Build and Deploy fr-docs Site
+description: >-
+  Build a documentation site using fr-docs and deploy it to GitHub Pages.
+  Caches Python (pip) and Node.js (npm) dependencies.
+inputs:
+  python-version:
+    description: 'Python version for fr-docs'
+    required: false
+    default: '3.14'
+  node-version:
+    description: 'Node.js version for npm tooling'
+    required: false
+    default: '20'
+  requirements-path:
+    description: 'Path to pip cache dependency file'
+    required: false
+    default: 'pyproject.toml'
+  lockfile-path:
+    description: 'Path to npm lockfile'
+    required: false
+    default: 'package-lock.json'
+  node-tools:
+    description: 'Space-separated npm packages to install for the build'
+    required: false
+    default: 'html-minifier-next@6.1.2 critical@7.2.1'
+  docs-dir:
+    description: 'Directory containing fr-docs config.json and src/'
+    required: false
+    default: 'docs'
+  output-dir:
+    description: 'Output directory for the built site'
+    required: false
+    default: 'docs/site'
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: 'pip'
+        cache-dependency-path: ${{ inputs.requirements-path }}
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+        cache-dependency-path: ${{ inputs.lockfile-path }}
+    - name: Install Node.js tools
+      shell: bash
+      run: npm install --no-audit --no-fund --no-save ${{ inputs.node-tools }}
+    - name: Install fr-docs
+      shell: bash
+      run: pip install --no-deps -e .
+    - name: Build docs site
+      shell: bash
+      working-directory: ${{ inputs.docs-dir }}
+      run: fr-docs build --production
+    - name: Configure GitHub Pages
+      uses: actions/configure-pages@v5
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ${{ inputs.output-dir }}
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+branding:
+  icon: 'cloud'
+  color: 'blue'
