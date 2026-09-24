@@ -1,16 +1,10 @@
 """Search index building for fr-docs."""
 
-import json
 import os
 import re
 
-from .config_accessors import (
-    search_index_filename,
-    src_dir,
-    zstd_level,
-)
 from .frontmatter import parse_frontmatter
-from .slug import slug_page_key, normalize_slug, slug_output_name
+from .slug import normalize_slug, slug_output_name, slug_page_key
 from .utils import output_href
 
 

@@ -31,7 +31,7 @@ def collect_git_metadata(config):
                 cwd=repo_root,
                 text=True,
             ).strip()
-        except (FileNotFoundError, subprocess.CalledProcessError):
+        except FileNotFoundError, subprocess.CalledProcessError:
             remote_url = ""
 
         m = re.search(r"github.com[:/](.+?)(?:\.git)?$", remote_url)
@@ -54,23 +54,21 @@ def collect_git_metadata(config):
                     h = parts[0]
                     msg = ""
                 git_meta["commits"].append(h)
-                m = re.match(
-                    r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)", msg
-                )
+                m = re.match(r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)", msg)
                 if m:
                     code = m.group(1).upper()
                     label = m.group(2).strip()
                     git_meta["versions"].append(
                         {"code": code, "commit": h, "label": label}
                     )
-        except (FileNotFoundError, subprocess.CalledProcessError):
+        except FileNotFoundError, subprocess.CalledProcessError:
             pass
 
         slugs = list(config.get("_slug_page_keys", {}).keys())
         for slug in slugs:
             git_meta["src_map"][slug_page_key(slug, config)] = src_map_path(config)
 
-    except (FileNotFoundError, subprocess.CalledProcessError, OSError) as e:
+    except FileNotFoundError, subprocess.CalledProcessError, OSError:
         pass
 
     return git_meta
@@ -90,13 +88,12 @@ def write_git_metadata(git_meta, config):
             encoding="utf-8",
         ) as gf:
             json.dump(git_meta, gf, separators=(",", ":"))
-    except (OSError, TypeError) as e:
+    except OSError, TypeError:
         pass
 
 
 def build_version_options(git_meta, config):
     """Pre-render version selector HTML options."""
-    from .config_accessors import live_label
 
     try:
         opts = [f'<option value="">{live_label(config)}</option>']
@@ -128,7 +125,7 @@ def build_version_options(git_meta, config):
                 )
 
         config["_version_options"] = "\n".join(opts)
-    except (KeyError, TypeError, AttributeError):
+    except KeyError, TypeError, AttributeError:
         config["_version_options"] = f'<option value="">{live_label(config)}</option>'
 
     return config["_version_options"]

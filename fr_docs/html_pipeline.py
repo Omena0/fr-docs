@@ -9,36 +9,31 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
-from .config import load_config
 from .config_accessors import (
-    git_meta_filename,
-    live_label,
     minify_html as cfg_minify_html,
+)
+from .config_accessors import (
     optimize_html as cfg_optimize_html,
-    out_dir,
+)
+from .config_accessors import (
     project_name,
-    search_index_filename,
     sidebar,
-    src_dir,
-    versioning_config,
-    workers,
-    zstd_level,
 )
 from .frontmatter import parse_frontmatter
 from .markdown import (
+    auto_link_markdown,
     convert_markdown,
     rewrite_md_links,
-    auto_link_markdown,
 )
+from .slug import slug_output_name
 from .syntax import (
+    URL_ATTR_RE,
+    format_ext_tags,
     highlight_code_blocks,
     process_blockquotes,
-    format_ext_tags,
 )
-from .slug import slug_output_name, normalize_slug
-from .template import build_toc_sidebar, TEMPLATE
+from .template import TEMPLATE, build_toc_sidebar
 from .utils import normalized_site_prefix, output_href
-from .syntax import URL_ATTR_RE
 
 
 def _determine_ext_sections(config):
@@ -267,7 +262,9 @@ def build_page(slug, config, slug_page_keys):
         logger.warning(f"Failed to minify HTML: {e}")
 
     if config.get("production", False):
-        page_url = f"https://docs.local{output_href(slug_output_name(slug, config), config)}"
+        page_url = (
+            f"https://docs.local{output_href(slug_output_name(slug, config), config)}"
+        )
         out_html = absolutize_links(out_html, page_url, config)
 
     out_name = slug_output_name(slug, config)

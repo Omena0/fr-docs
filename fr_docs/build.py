@@ -7,7 +7,6 @@ Converts Markdown source files into a static HTML site using configuration.
 import argparse
 import concurrent.futures
 import json
-import logging
 import os
 import shutil
 import sys
@@ -25,7 +24,7 @@ from .config_accessors import (
     workers,
     zstd_level,
 )
-from .git import collect_git_metadata, write_git_metadata, build_version_options
+from .git import build_version_options, collect_git_metadata, write_git_metadata
 from .html_pipeline import build_page
 from .search import build_search_index
 from .slug import (
@@ -38,14 +37,13 @@ from .utils import normalized_site_prefix
 def main(argv=None):
     if argv is not None and argv and argv[0] == "build":
         argv = argv[1:]
-    elif argv is None:
-        if (
-            Path(sys.argv[0]).name == "fr-docs"
-            and len(sys.argv) > 1
-            and sys.argv[1] == "build"
-        ):
-            sys.argv.pop(1)
-            argv = sys.argv[1:]
+    elif argv is None and (
+        Path(sys.argv[0]).name == "fr-docs"
+        and len(sys.argv) > 1
+        and sys.argv[1] == "build"
+    ):
+        sys.argv.pop(1)
+        argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(
         description="Build the fr-docs documentation site."
@@ -72,8 +70,10 @@ def main(argv=None):
         print(f"   Site prefix: {normalized_site_prefix(config)}")
     print()
 
+
     # Copy static assets
     docs_path = Path(config["_docs_dir"])
+    os.makedirs(Path(config["_out_dir"]), exist_ok=True)
     for name in ("favicon.svg", "script.js", "style.css"):
         src = docs_path / name
         dst = Path(config["_out_dir"]) / name
@@ -81,9 +81,9 @@ def main(argv=None):
         try:
             shutil.copyfile(src, dst)
         except FileNotFoundError:
-            pass
+            print(f'File not found: {os.getcwd()}, {src}->{dst}')
         except OSError as e:
-            pass
+            print(f'OSError: {e}')
 
     slugs = get_all_slugs(config)
 
@@ -149,7 +149,9 @@ def main(argv=None):
             max_workers=workers(config)
         ) as executor:
             future_to_slug = {
-                executor.submit(build_page, slug, config, config["_slug_page_keys"]): slug
+                executor.submit(
+                    build_page, slug, config, config["_slug_page_keys"]
+                ): slug
                 for slug in slugs_to_build
             }
             for fut in concurrent.futures.as_completed(future_to_slug):
@@ -158,7 +160,7 @@ def main(argv=None):
                     fut.result()
                     print(f"  ✓ {slug_output_name(slug, config)}")
                     built += 1
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     print(f"  ✗ {slug_output_name(slug, config)} (error: {e})")
     else:
         print("No pages found to build.")

@@ -10,10 +10,8 @@ from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.tables import TableExtension
 
 from .slug import (
-    slug_output_name,
-    slug_page_key,
     normalize_slug,
-    slug_basename,
+    slug_output_name,
 )
 from .syntax import URL_ATTR_RE
 
@@ -67,11 +65,7 @@ def resolve_md_target(md_target, current_slug, slug_page_keys):
                 if "/" in normalized_current
                 else ""
             )
-        candidates.append(
-            normalize_slug(
-                f"{base_dir}/{raw}" if base_dir else raw
-            )
-        )
+        candidates.append(normalize_slug(f"{base_dir}/{raw}" if base_dir else raw))
 
     for candidate in candidates:
         if candidate in slug_page_keys:

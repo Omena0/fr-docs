@@ -42,6 +42,7 @@ build.build_page("getting_started/index")
 
 # Load configuration
 from .config import load_config
+
 config = load_config("config.json")
 ```
 

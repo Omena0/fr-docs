@@ -1,7 +1,5 @@
 """Configuration accessor functions for fr-docs."""
 
-from .config import DEFAULT_CONFIG
-
 
 def project_name(config):
     return config.get("project_name", "Project Name")
