@@ -54,8 +54,8 @@ def load_config(config_path=None):
 
     config_path = config_path.resolve()
     docs_dir = Path(config["docs_dir"]).resolve() if config["docs_dir"] else config_path.parent
-    src_dir = Path(config["src_dir"]).resolve() if config["src_dir"] else docs_dir / "src"
-    out_dir = Path(config["out_dir"]).resolve() if config["out_dir"] else docs_dir / "site"
+    src_dir = docs_dir / config["src_dir"] if config["src_dir"] else docs_dir / "src"
+    out_dir = docs_dir / config["out_dir"] if config["out_dir"] else docs_dir / "site"
 
     config["_config_path"] = str(config_path)
     config["_docs_dir"] = str(docs_dir)

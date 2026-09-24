@@ -585,17 +585,10 @@ def optimize_html(html_input, base_path=None):
         f_in.write(html_input)
         in_path = Path(f_in.name)
 
-    if base_path is None:
-        base_path = config["_out_dir"]
-    elif not os.path.isabs(base_path):
-        base_path = os.path.join(config["_docs_dir"], base_path)
-
     cmd = [
         "npx", "critical",
         str(in_path),
-        "--base", str(base_path),
         "--inline",
-        "--extract",
         "--width", "1920",
         "--height", "1080",
     ]
@@ -667,7 +660,6 @@ def main(argv=None):
     elif argv is None:
         # When called directly from entry point, sys.argv will contain "build"
         import sys
-        from pathlib import Path
         if Path(sys.argv[0]).name == "fr-docs" and len(sys.argv) > 1 and sys.argv[1] == "build":
             # Remove "build" from sys.argv before parsing
             sys.argv.pop(1)

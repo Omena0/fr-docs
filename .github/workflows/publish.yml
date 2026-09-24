@@ -1,0 +1,103 @@
+name: Publish to PyPI
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
+
+      - name: Install build deps
+        run: pip install build twine tomli-w
+
+      - name: Extract version from commit message
+        id: version
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ "$COMMIT_MSG" =~ ^([0-9]+[A-Za-z])\ - ]]; then
+            CODE="${BASH_REMATCH[1]}"
+            MAJOR="${CODE:0:1}"
+            MINOR_LETTER="${CODE:1:1}"
+            PATCH=0
+            # Convert letter to number: A=1, B=2, C=3, D=4, ...
+            MINOR=$(printf "%d" "'$MINOR_LETTER")
+            MINOR=$((MINOR - 96))  # 'a' is 97, so 97-96=1
+            SEMVER="${MAJOR}.${MINOR}.${PATCH}"
+            echo "version=$SEMVER" >> $GITHUB_OUTPUT
+            echo "release_title=$CODE" >> $GITHUB_OUTPUT
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual build: bump patch from last published version
+            LAST_TAG=$(git tag --sort=-creatordate --matched-pattern '[0-9]*[A-Za-z]*' --format='%(refname:short)' | head -1)
+            if [ -n "$LAST_TAG" ]; then
+              # Convert last tag to semver and bump patch
+              LAST_MAJOR="${LAST_TAG:0:1}"
+              LAST_MINOR_LETTER="${LAST_TAG:1:1}"
+              LAST_PATCH=0
+              LAST_MINOR=$(printf "%d" "'$LAST_MINOR_LETTER")
+              LAST_MINOR=$((LAST_MINOR - 96))
+              LAST_SEMVER="${LAST_MAJOR}.${LAST_MINOR}.${LAST_PATCH}"
+              # Bump patch
+              NEW_PATCH=$((LAST_PATCH + 1))
+              SEMVER="${LAST_MAJOR}.${LAST_MINOR}.${NEW_PATCH}"
+              echo "version=$SEMVER" >> $GITHUB_OUTPUT
+              echo "release_title=${LAST_MAJOR}${LAST_MINOR_LETTER}${NEW_PATCH}" >> $GITHUB_OUTPUT
+              echo "should_publish=true" >> $GITHUB_OUTPUT
+            else
+              # No previous tags, start at 0.1.0
+              echo "version=0.1.0" >> $GITHUB_OUTPUT
+              echo "release_title=0A" >> $GITHUB_OUTPUT
+              echo "should_publish=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+            echo "Skipping publish — no version prefix in commit message"
+          fi
+
+      - name: Update pyproject.toml version
+        if: steps.version.outputs.should_publish == 'true'
+        run: |
+          python - << 'EOF'
+          import tomli_w
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              data = tomllib.load(f)
+          data["project"]["version"] = "${{ steps.version.outputs.version }}"
+          with open("pyproject.toml", "wb") as f:
+              tomli_w.dump(data, f)
+          EOF
+
+      - name: Build package
+        if: steps.version.outputs.should_publish == 'true'
+        run: python -m build
+
+      - name: Publish to PyPI
+        if: steps.version.outputs.should_publish == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub Release
+        if: steps.version.outputs.should_publish == 'true'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.release_title }}
+          release_name: ${{ steps.version.outputs.release_title }}
