@@ -45,9 +45,7 @@ def main(argv=None):
         sys.argv.pop(1)
         argv = sys.argv[1:]
 
-    parser = argparse.ArgumentParser(
-        description="Build the documentation site."
-    )
+    parser = argparse.ArgumentParser(description="Build the documentation site.")
     parser.add_argument(
         "--production",
         action="store_true",
@@ -70,7 +68,6 @@ def main(argv=None):
         print(f"   Site prefix: {normalized_site_prefix(config)}")
     print()
 
-
     # Copy static assets
     docs_path = Path(config["_docs_dir"])
     os.makedirs(Path(config["_out_dir"]), exist_ok=True)
@@ -81,9 +78,9 @@ def main(argv=None):
         try:
             shutil.copyfile(src, dst)
         except FileNotFoundError:
-            print(f'File not found: {os.getcwd()}, {src}->{dst}')
+            print(f"File not found: {os.getcwd()}, {src}->{dst}")
         except OSError as e:
-            print(f'OSError: {e}')
+            print(f"OSError: {e}")
 
     slugs = get_all_slugs(config)
 
