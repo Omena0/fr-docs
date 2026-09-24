@@ -1,0 +1,423 @@
+---
+title: Decorators
+subtitle: Register event handlers, commands, and repeating tasks
+---
+
+# Decorators
+
+PyJavaBridge uses Python decorators to register event handlers, commands, and repeating tasks. Your decorated functions are discovered automatically when the script loads.
+
+---
+
+## @event
+
+```python
+@event
+async def player_join(e):
+    await e.player.send_message("Welcome!")
+```
+
+Register a function as an event handler. The function name determines the event type — it is converted from `snake_case` to `PascalCase` and `Event` is appended. For example, `player_join` becomes `PlayerJoinEvent`.
+
+### Signature
+
+```py
+@event(*, once_per_tick=False, priority="NORMAL", throttle_ms=0)
+```
+
+### Parameters
+
+#### once_per_tick
+
+- **Type:** `bool`
+- **Default:** `False`
+
+When `True`, the handler is called at most once per server tick, even if the event fires multiple times. Useful for high-frequency events like `player_move`.
+
+```python
+@event(once_per_tick=True)
+async def player_move(e):
+    # Called at most once per tick per event, not every micro-movement
+    pass
+```
+
+#### priority
+
+- **Type:** `str`
+- **Default:** `"NORMAL"`
+
+The Bukkit event priority. Determines the order in which handlers run. Options (lowest runs first):
+
+| Priority | Description |
+| -------- | ----------- |
+| `LOWEST` | Runs first. Use for early cancellation. |
+| `LOW` | Runs before normal handlers. |
+| `NORMAL` | Default priority. |
+| `HIGH` | Runs after normal handlers. |
+| `HIGHEST` | Runs last before monitor. |
+| `MONITOR` | Read-only observation. Do not modify the event. |
+
+```python
+@event(priority="HIGH")
+async def block_break(e):
+    # This runs after NORMAL-priority handlers
+    pass
+```
+
+#### throttle_ms
+
+- **Type:** `int`
+- **Default:** `0`
+
+Minimum milliseconds between handler invocations. If the event fires more frequently, extra invocations are silently dropped.
+
+```python
+@event(throttle_ms=500)
+async def player_interact(e):
+    # At most once every 500ms, prevents spam-clicking abuse
+    pass
+```
+
+### Bare decorator
+
+You can use `@event` without parentheses for the default settings:
+
+```python
+@event
+async def player_quit(e):
+    await server.broadcast(f"{e.player.name} left!")
+```
+
+---
+
+## @command
+
+```python
+@command("Greet a player", permission="myplugin.greet")
+async def greet(e):
+    await e.player.send_message("Hello!")
+```
+
+Register a function as a script command. The command is automatically available as `/functionname` (or as specified via the `name` parameter). Command arguments are parsed from the function's additional parameters after `event`.
+
+### Signature
+
+```py
+@command(description=None, *, name=None, permission=None, tab_complete=None)
+```
+
+### Parameters
+
+#### description
+
+- **Type:** `str | None`
+- **Default:** `None`
+
+A human-readable description of the command. This is the first positional argument.
+
+```python
+@command("Teleport to spawn")
+async def spawn(e):
+    ...
+```
+
+#### name
+
+- **Type:** `str | None`
+- **Default:** `None` (uses function name)
+
+Override the command name. By default the function name is used. If the function name starts with `cmd_`, the prefix is automatically stripped.
+
+```python
+@command("Teleport home", name="home")
+async def teleport_home(e):
+    # Registered as /home, not /teleport_home
+    ...
+```
+
+```python
+@command("Greet a player")
+async def cmd_greet(e):
+    # Registered as /greet, not /cmd_greet
+    await e.player.send_message("Hello!")
+```
+
+#### permission
+
+- **Type:** `str | None`
+- **Default:** `None`
+
+Permission node required to use the command. Players without this permission cannot execute it.
+
+```python
+@command("Ban a player", permission="admin.ban")
+async def ban(e, target: str):
+    ...
+```
+
+#### tab_complete
+
+- **Type:** `dict[int, list[str]] | None`
+- **Default:** `None`
+
+Static tab completion suggestions per argument position (0-indexed). Use `-1` as a wildcard for all positions without their own entry. For dynamic completions, see the `@my_command.tab_complete` decorator below.
+
+```python
+@command("Set game mode", tab_complete={
+    0: ["survival", "creative", "adventure", "spectator"]
+})
+async def gamemode(e, mode: str):
+    ...
+```
+
+```python
+@command("Teleport to a place", tab_complete={
+    0: ["spawn", "home", "shop", "arena"],
+})
+async def tp(e, place: str):
+    ...
+```
+
+Wildcard example — suggest the same options for any argument position:
+
+```python
+@command("Tag players", tab_complete={
+    -1: ["vip", "admin", "builder", "mod"]
+})
+async def tag(e, *tags):
+    ...
+```
+
+### Dynamic tab completion
+
+For dynamic completions that depend on server state (online players, entities, etc.), use the `@my_command.tab_complete` decorator:
+
+```python
+@command("Teleport to a player")
+async def tp(e, target: str):
+    ...
+
+@tp.tab_complete
+async def tp_complete(sender, args):
+    # args is the list of current arguments being typed
+    players = await server.get_online_players()
+    names = [p.name for p in players]
+    # Filter by what the user has typed so far
+    partial = args[-1].lower() if args else ""
+    return [n for n in names if n.lower().startswith(partial)]
+```
+
+The tab completion handler receives:
+
+- **sender** — the player or command sender requesting completions
+- **args** — list of current argument strings (the last one is being typed)
+
+It should return a list of suggestion strings. The handler can be `async` or synchronous.
+
+```python
+@command("Give item to player")
+async def give(e, player: str, item: str, amount: str = "1"):
+    ...
+
+@give.tab_complete
+async def give_complete(sender, args):
+    if len(args) <= 1:
+        # First arg: player names
+        players = await server.get_online_players()
+        partial = args[0].lower() if args else ""
+        return [p.name for p in players if p.name.lower().startswith(partial)]
+    elif len(args) == 2:
+        # Second arg: item types
+        items = ["diamond", "iron_ingot", "gold_ingot", "emerald"]
+        partial = args[1].lower()
+        return [i for i in items if i.startswith(partial)]
+    elif len(args) == 3:
+        # Third arg: amounts
+        return ["1", "16", "32", "64"]
+    return []
+```
+
+### Command arguments
+
+Extra function parameters after the event become command arguments. They are parsed positionally from the player's input:
+
+```python
+@command("Give items")
+async def give(e, material: str, amount: str = "1"):
+    # /give diamond 64
+    # material = "diamond", amount = "64"
+    await Item.give(e.player, material, int(amount))
+```
+
+All arguments are passed as strings. You handle type conversion yourself.
+
+---
+
+## @task
+
+```python
+@task(interval=20, delay=0)
+async def tick_loop():
+    ...
+```
+
+Register a repeating async task. The function is called repeatedly at the specified interval after an optional initial delay.
+
+### Signature
+
+```py
+@task(*, interval=20, delay=0)
+```
+
+### Parameters
+
+#### interval
+
+- **Type:** `int`
+- **Default:** `20`
+
+Ticks between invocations. Minecraft runs at 20 ticks per second, so `interval=20` means once per second, `interval=1` means every tick.
+
+#### delay
+
+- **Type:** `int`
+- **Default:** `0`
+
+Initial delay in ticks before the first invocation. Use this to wait for the server to fully start.
+
+```python
+@task(interval=20*60, delay=20*5)
+async def auto_save():
+    # Runs every 60 seconds, starting 5 seconds after script load
+    await server.execute("save-all")
+```
+
+### Notes
+
+- Task functions take **no arguments** (unlike event/command handlers).
+- The task is cancelled automatically when the script is unloaded.
+- If the function is still running when the next invocation is due, the next invocation is skipped.
+
+---
+
+## @async_task
+
+```python
+from bridge import async_task
+
+@async_task
+async def do_work():
+    await something()
+```
+
+Make an `async def` fire-and-forget safe. The decorated function returns a `BridgeCall` when called — the coroutine is immediately scheduled as a background task.
+
+Callers can `await` the result to wait for completion, or ignore it to let it run in the background. This matches the behaviour of built-in bridge API calls.
+
+### Signature
+
+```py
+@async_task
+```
+
+### Usage
+
+```python
+@async_task
+async def build_arena():
+    await world.fill(x1, y1, z1, x2, y2, z2, "stone")
+
+# Fire-and-forget:
+build_arena()
+
+# Or await:
+await build_arena()
+```
+
+### Notes
+
+- Works on both module-level functions and methods.
+- The return value is a `BridgeCall`, which is an `Awaitable`.
+- Unawaited errors are silently logged (same as unawaited bridge API calls).
+
+---
+
+## @preserve
+
+```python
+@preserve
+def player_scores():
+    return {}
+```
+
+Persist a variable across hot reloads. Decorate a no-arg factory function. On first load, the factory runs and its return value is cached to disk as JSON. On subsequent reloads, the cached value is returned instead.
+
+### Signature
+
+```py
+@preserve
+```
+
+### Usage
+
+```python
+@preserve
+def kill_counts():
+    return {}
+
+@event
+async def entity_death(e):
+    if e.entity.type.name == "ZOMBIE":
+        killer = e.entity.source
+        if killer:
+            kill_counts[killer.name] = kill_counts.get(killer.name, 0) + 1
+```
+
+### Notes
+
+- Only works with JSON-serializable return values.
+- Data is stored in `plugins/PyJavaBridge/preserve/<function_qualname>.json`.
+- The value is loaded once at script start and saved on changes.
+
+---
+
+## fire_event
+
+```python
+fire_event(event_name, data=None)
+```
+
+Fire a custom event that all scripts (including the calling script) can listen to. This enables cross-script communication.
+
+### Signature
+
+```py
+fire_event(event_name: str, data: dict | None = None) -> None
+```
+
+### Parameters
+
+#### event_name
+
+- **Type:** `str`
+
+The custom event name. Listeners subscribe using the `@event` decorator with a matching function name (snake_case).
+
+#### data
+
+- **Type:** `dict | None`
+- **Default:** `None`
+
+Optional data payload passed to listeners via the event object.
+
+### Usage
+
+```python
+# Script A: fire a custom event
+fire_event("quest_complete", {"player": player.name, "quest": "dragon_slayer"})
+
+# Script B: listen for it
+@event
+async def quest_complete(e):
+    await server.broadcast(f"{e.player} completed {e.quest}!")
+```
