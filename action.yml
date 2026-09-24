@@ -22,7 +22,7 @@ inputs:
   node-tools:
     description: 'Space-separated npm packages to install for the build'
     required: false
-    default: 'html-minifier-next@6.1.2 critical@7.2.1'
+    default: 'html-minifier-next@8.5.3 critical@9.0.0'
   docs-dir:
     description: 'Directory containing fr-docs config.json and src/'
     required: false
