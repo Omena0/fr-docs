@@ -20,7 +20,7 @@ from urllib.parse import urljoin, urlsplit
 import sys
 
 # Import local modules
-from fr_docs.config import load_config, project_name, site_prefix, sidebar, src_dir, out_dir, docs_dir, search_index_filename, git_meta_filename, zstd_level, workers, minify_html, optimize_html, commit_message_pattern, live_label, project_url, src_map_path
+from fr_docs.config import load_config, project_name, site_prefix, sidebar, src_dir, out_dir, docs_dir, search_index_filename, git_meta_filename, zstd_level, workers, minify_html as cfg_minify_html, optimize_html as cfg_optimize_html, commit_message_pattern, live_label, project_url, src_map_path
 from fr_docs.template import TEMPLATE, build_sidebar_html, build_toc_sidebar
 
 try:
@@ -578,7 +578,7 @@ def build_page(slug):
 
 
 def optimize_html(html_input, base_path=None):
-    if not optimize_html():
+    if not cfg_optimize_html(config):
         return html_input
 
     with tempfile.NamedTemporaryFile("w+", suffix=".html", delete=False) as f_in:
@@ -625,7 +625,7 @@ def optimize_html(html_input, base_path=None):
 
 
 def minify_html(html_input):
-    if not minify_html():
+    if not cfg_minify_html(config):
         return html_input
 
     with tempfile.NamedTemporaryFile("w+", suffix=".html", delete=False) as temp_in:
@@ -661,6 +661,18 @@ def minify_html(html_input):
 
 def main(argv=None):
     global config
+    # Normalize: if argv starts with "build", strip it
+    if argv is not None and argv and argv[0] == "build":
+        argv = argv[1:]
+    elif argv is None:
+        # When called directly from entry point, sys.argv will contain "build"
+        import sys
+        from pathlib import Path
+        if Path(sys.argv[0]).name == "fr-docs" and len(sys.argv) > 1 and sys.argv[1] == "build":
+            # Remove "build" from sys.argv before parsing
+            sys.argv.pop(1)
+            argv = sys.argv[1:]
+
     parser = argparse.ArgumentParser(description="Build the fr-docs documentation site.")
     parser.add_argument(
         "--production",
@@ -937,6 +949,7 @@ def main(argv=None):
 
     compressed = cctx.compress(search_json.encode('utf-8'))
     search_index_path = os.path.join(config["_out_dir"], search_index_filename(config))
+    os.makedirs(os.path.dirname(search_index_path), exist_ok=True)
     with open(search_index_path, "wb") as sf:
         sf.write(compressed)
 
