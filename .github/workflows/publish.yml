@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
             echo "should_publish=true" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             # Manual build: bump patch from last published version
-            LAST_TAG=$(git tag --sort=-creatordate --matched-pattern '[0-9]*[A-Za-z]*' --format='%(refname:short)' | head -1)
+            LAST_TAG=$(git tag --list '[0-9]*[A-Za-z]*' --sort=-creatordate | head -1)
             if [ -n "$LAST_TAG" ]; then
               # Convert last tag to semver and bump patch
               LAST_MAJOR="${LAST_TAG:0:1}"
@@ -95,9 +95,9 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.version.outputs.should_publish == 'true'
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.version.outputs.release_title }}
-          release_name: ${{ steps.version.outputs.release_title }}
+        run: |
+          gh release create "${{ steps.version.outputs.release_title }}" \
+            --title "${{ steps.version.outputs.release_title }}" \
+            --generate-notes
