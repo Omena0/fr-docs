@@ -51,7 +51,7 @@ runs:
       run: npm install --no-audit --no-fund --no-save ${{ inputs.node-tools }}
     - name: Install fr-docs
       shell: bash
-      run: pip install --no-deps -e .
+      run: pip install -e .
     - name: Build docs site
       shell: bash
       working-directory: ${{ inputs.docs-dir }}
