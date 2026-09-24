@@ -10,7 +10,7 @@ inputs:
   node-version:
     description: 'Node.js version for npm tooling'
     required: false
-    default: '20'
+    default: '22'
   requirements-path:
     description: 'Path to pip cache dependency file'
     required: false
