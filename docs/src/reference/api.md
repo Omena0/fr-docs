@@ -41,7 +41,7 @@ build.build_docs(config_path="config.json")
 build.build_page("getting_started/index")
 
 # Load configuration
-from fr_docs.config import load_config
+from .config import load_config
 config = load_config("config.json")
 ```
 
@@ -57,7 +57,7 @@ print(fr_docs.__version__)
 ## Configuration API
 
 ```python
-from fr_docs.config import (
+from .config import (
     load_config,
     project_name,
     site_prefix,

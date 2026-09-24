@@ -1,5 +1,7 @@
 """HTML template for documentation pages."""
 
+from .slug import slug_basename, slug_output_name
+
 TEMPLATE = """\
 <!DOCTYPE html>
 <html lang="en" data-site-prefix="{site_prefix}">
@@ -148,23 +150,3 @@ def _section_key(name):
     import re
 
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-
-
-# These will be imported from the main build module
-def slug_output_name(slug):
-    return f"{slug}.html"
-
-
-def slug_page_key(slug):
-    return slug
-
-
-def _normalize_slug(slug):
-    return str(slug).replace("\\", "/").strip("/")
-
-
-def slug_basename(slug):
-    normalized = str(slug).replace("\\", "/").strip("/")
-    if not normalized:
-        return ""
-    return normalized.rsplit("/", 1)[-1]
