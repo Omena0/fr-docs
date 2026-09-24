@@ -2,7 +2,7 @@
   "project_name": "Fr-docs",
   "project_url": "https://github.com/Omena0/fr-docs",
   "docs_dir": ".",
-  "site_path_prefix": "/",
+  "site_path_prefix": "/fr-docs",
   "sidebar": [
     ["Introduction", [
       ["getting_started/index", "Home"],

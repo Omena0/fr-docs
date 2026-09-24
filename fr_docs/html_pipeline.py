@@ -85,7 +85,7 @@ def should_absolutize_url(raw_url):
     value = raw_url.strip()
     if not value or value.startswith(("#", "//")):
         return False
-    if re.match(r"\.(css|js|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$", value, re.I):
+    if re.search(r"\.(css|js|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$", value, re.I):
         return False
     return not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", value)
 

@@ -46,7 +46,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     parser = argparse.ArgumentParser(
-        description="Build the fr-docs documentation site."
+        description="Build the documentation site."
     )
     parser.add_argument(
         "--production",

@@ -16,11 +16,11 @@ TEMPLATE = """\
   <meta property="og:site_name" content="{project_name} Docs">
   <meta name="theme-color" content="#6366f1">
   <meta name="color-scheme" content="dark">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="{site_prefix}favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="{site_prefix}style.css">
 </head>
 <body>
   <!-- Header -->
@@ -77,7 +77,7 @@ TEMPLATE = """\
   </button>
 
     {search_index_inline}
-    <script src="script.js" defer></script>
+    <script src="{site_prefix}script.js" defer></script>
 </body>
 </html>
 """
