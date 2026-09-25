@@ -19,17 +19,51 @@ _DECORATORS_DEST = "decorators"
 
 _MD_LOCAL = threading.local()
 
-# Pattern to match code reference links: [text](path/to/file.py:123) or [text](path/to/file.py)
-# Only matches source code files, not markdown/documentation files
+CODE_REF_TARGET = r"(?::(?P<location>[^)]+))?"
 CODE_REF_RE = re.compile(
-    r"\[([^\]]+)\]\(([a-zA-Z0-9_./\\-]+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|hpp|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|vim|sh|bash|zsh|fish|ps1|bat|cmd|sql|html|htm|xml|json|yaml|yml|toml|ini|cfg|conf|css|scss|sass|less|styl|vue|svelte|astro|mdx))(?::(\d+))?\)"
-)
-
-# Pattern to match code reference links in HTML (already converted by markdown)
-CODE_REF_HTML_RE = re.compile(
-    r'(<a\s+href=(["\'])([^"\']+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|sh|bash|zsh|fish|ps1|bat|cmd|sql|html|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt|rst|css|scss|sass|less|styl|vue|svelte|astro|mdx):\d+)["\'][^>]*>)(.*?)(</a>)',
+    r"\[(?P<link_text>[^\]]+)\]\((?P<file>[a-zA-Z0-9_./\\-]+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|hpp|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|vim|sh|bash|zsh|fish|ps1|bat|cmd|sql|xml|json|yaml|yml|toml|ini|cfg|conf|css|scss|sass|less|styl|vue|svelte|astro|mdx))"
+    + CODE_REF_TARGET
+    + r"\)",
     flags=re.IGNORECASE,
 )
+CODE_REF_HTML_RE = re.compile(
+    r'<a\s+href=(["\'])(?P<file>[^"\']+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|sh|bash|zsh|fish|ps1|bat|cmd|sql|xml|json|yaml|yml|toml|ini|cfg|conf|css|scss|sass|less|styl|vue|svelte|astro|mdx))(?::(?P<location>[^"\']+))?\1[^>]*>(?P<link_text>.*?)</a>',
+    flags=re.IGNORECASE,
+)
+
+
+def _parse_code_location(location):
+    location = str(location or "").strip()
+    if not location:
+        return {}
+    if re.fullmatch(r"\d+", location):
+        return {"line": int(location)}
+    range_match = re.fullmatch(r"(\d+)-(\d+)(?::\d+)?", location)
+    if range_match:
+        return {
+            "line": int(range_match.group(1)),
+            "end_line": int(range_match.group(2)),
+        }
+    column_match = re.fullmatch(r"(\d+):(\d+)", location)
+    if column_match:
+        return {
+            "line": int(column_match.group(1)),
+            "column": int(column_match.group(2)),
+        }
+    return {"function": location}
+
+
+def _code_ref_data(file_path, location, link_text, ref_id):
+    return {
+        "id": ref_id,
+        "file": file_path,
+        "link_text": link_text,
+        "column": None,
+        "line": None,
+        "end_line": None,
+        "function": None,
+        **_parse_code_location(location),
+    }
 
 
 def _make_md():
@@ -287,31 +321,24 @@ def process_code_references_html(html_text, config):
     # Process code references OUTSIDE code blocks (regular <a> links)
     # Pattern: <a href="file.py:123">text</a>
     def _repl_outside(m):
-        href = m.group(3)
-        link_text = m.group(4)
-
-        # Parse file path and line from href
-        if ":" in href:
-            file_path, line_str = href.rsplit(":", 1)
-            line = int(line_str) if line_str.isdigit() else None
-        else:
-            file_path = href
-            line = None
-
+        file_path = m.group("file")
+        location = m.group("location")
+        link_text = m.group("link_text")
         ref_id = f"coderef-{ref_counter[0]}"
         ref_counter[0] += 1
-
-        code_refs.append(
-            {
-                "id": ref_id,
-                "file": file_path,
-                "line": line,
-                "column": None,
-                "link_text": link_text,
-            }
+        ref = _code_ref_data(file_path, location, link_text, ref_id)
+        code_refs.append(ref)
+        line = ref.get("line") or ""
+        end_line = ref.get("end_line") or ""
+        function = ref.get("function") or ""
+        column = ref.get("column") or ""
+        return (
+            f'<a href="#{ref_id}" class="code-reference" data-coderef-id="{ref_id}" '
+            f'data-coderef-file="{html.escape(file_path, quote=True)}" '
+            f'data-coderef-line="{line}" data-coderef-end-line="{end_line}" '
+            f'data-coderef-column="{column}" data-coderef-function="{html.escape(function, quote=True)}">'
+            f"{html.escape(link_text)}</a>"
         )
-
-        return f'<a href="#coderef-{ref_id}" class="code-reference" data-coderef-id="{ref_id}" data-coderef-file="{html.escape(file_path, quote=True)}" data-coderef-line="{line or ""}">{html.escape(link_text)}</a>'
 
     processed = CODE_REF_HTML_RE.sub(_repl_outside, protected_html)
 
@@ -338,25 +365,24 @@ def _process_code_refs_in_html_block(block_html, start_counter):
 
     def _repl(m):
         nonlocal ref_counter
-        link_text = m.group(1)
-        file_path = m.group(2)
-        line_str = m.group(3)
-        line = int(line_str) if line_str else None
-
+        link_text = m.group("link_text")
+        file_path = m.group("file")
+        location = m.group("location")
         ref_id = f"coderef-{ref_counter}"
         ref_counter += 1
-
-        code_refs.append(
-            {
-                "id": ref_id,
-                "file": file_path,
-                "line": line,
-                "column": None,
-                "link_text": link_text,
-            }
+        ref = _code_ref_data(file_path, location, link_text, ref_id)
+        code_refs.append(ref)
+        line = ref.get("line") or ""
+        end_line = ref.get("end_line") or ""
+        function = ref.get("function") or ""
+        column = ref.get("column") or ""
+        return (
+            f'<a href="#{ref_id}" class="code-reference" data-coderef-id="{ref_id}" '
+            f'data-coderef-file="{html.escape(file_path, quote=True)}" '
+            f'data-coderef-line="{line}" data-coderef-end-line="{end_line}" '
+            f'data-coderef-column="{column}" data-coderef-function="{html.escape(function, quote=True)}">'
+            f"{html.escape(link_text)}</a>"
         )
-
-        return f'<a href="#coderef-{ref_id}" class="code-reference" data-coderef-id="{ref_id}" data-coderef-file="{html.escape(file_path, quote=True)}" data-coderef-line="{line or ""}">{html.escape(link_text)}</a>'
 
     processed = CODE_REF_RE.sub(_repl, block_html)
     return processed, code_refs

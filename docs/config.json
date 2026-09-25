@@ -8,10 +8,8 @@
       ["index", "Home"],
       ["installation", "Installation"],
       ["quickstart", "Quickstart"],
-      ["config.json", "Configuration"]
-    ]],
-    ["Features", [
-      ["features", "Features Showcase"]
+      ["config.json", "Configuration"],
+      ["showcase", "Showcase"]
     ]]
   ],
   "build": {

@@ -4,21 +4,31 @@ This page demonstrates all the features of fr-docs.
 
 ## 1. Code References
 
-Code references link to source files with line numbers. They work **both inside code blocks and inline**.
+Code references can open a whole file, a specific line or range, or a function. File and function references are scrollable, and function references include attached decorators plus one line of context.
 
-### Inline code reference
+### File reference (entire file)
+
+[fr_docs/syntax.py](fr_docs/syntax.py)
+
+### Function reference
+
+[highlight_code_blocks](fr_docs/syntax.py:highlight_code_blocks)
+
+### Line range reference
+
+[normalize_language](fr_docs/syntax.py:39-47)
+
+Ranges highlight the first and last selected lines fully; intervening lines only show the range marker beside the line number.
+
+### Inline and code-block references
 
 [process_code_references_html()](fr_docs/markdown.py:265)
 
-### In code block (also linked)
-
 ```python
-# This references a function: [process_code_references_html](fr_docs/markdown.py:265)
+# This references a function: [process_code_references_html](fr_docs/markdown.py:process_code_references_html)
 def hello():
     pass
 ```
-
-### Click the link above to open the code panel
 
 ## 2. Filename Auto-linking
 
@@ -188,7 +198,7 @@ This is an [ext] feature.
 
 | Feature | Status | Description |
 | --------- | -------- | ------------- |
-| Code References | ✅ | Link to source code |
+| Code References | ✅ | File, line, range, and function links |
 | Filename Links | ✅ | Auto-link inline filenames |
 | Syntax Highlighting | ✅ | Python, JS, JSON, YAML, Bash |
 | Search | ✅ | Full-text + symbols |

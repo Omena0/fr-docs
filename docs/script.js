@@ -999,6 +999,102 @@ document.addEventListener('DOMContentLoaded', () => {
     return escapeSourceText(content.split(/\r?\n/)[lineNumber - 1] || '');
   }
 
+  function findFunctionRange(content, name) {
+    const lines = content.split(/\r?\n/);
+    const escapedName = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const patterns = [
+      new RegExp(`^\\s*(?:async\\s+)?def\\s+${escapedName}\\s*\\(`),
+      new RegExp(`^\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${escapedName}\\s*\\(`),
+      new RegExp(`^\\s*(?:export\\s+)?(?:const|let|var)\\s+${escapedName}\\s*=`)
+    ];
+    let definition = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (patterns.some(pattern => pattern.test(lines[i]))) {
+        definition = i;
+        break;
+      }
+    }
+    if (definition < 0) return null;
+
+    let start = definition;
+    while (start > 0 && /^\s*@/.test(lines[start - 1])) start--;
+    let end = lines.length - 1;
+    if (/^\s*(?:async\s+)?def\s/.test(lines[definition])) {
+      const indent = (lines[definition].match(/^\s*/) || [''])[0].length;
+      end = definition;
+      for (let i = definition + 1; i < lines.length; i++) {
+        if (lines[i].trim() && (lines[i].match(/^\s*/) || [''])[0].length <= indent) {
+          end = i - 1;
+          break;
+        }
+      }
+    } else {
+      let depth = 0;
+      let opened = false;
+      for (let i = definition; i < lines.length; i++) {
+        depth += (lines[i].match(/\{/g) || []).length;
+        depth -= (lines[i].match(/\}/g) || []).length;
+        opened ||= lines[i].includes('{');
+        if (opened && depth <= 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    return { start: start + 1, end: end + 1 };
+  }
+
+  function referenceView(ref, content) {
+    const lines = content.split(/\r?\n/);
+    if (ref.function) {
+      const range = findFunctionRange(content, ref.function);
+      if (range) {
+        return {
+          start: Math.max(1, range.start - 1),
+          end: Math.min(lines.length, range.end + 1),
+          selectedStart: range.start,
+          selectedEnd: range.end,
+          range: true,
+          functionName: ref.function
+        };
+      }
+    }
+    if (ref.line && ref.end_line) {
+      return {
+        start: Math.max(1, ref.line - 2),
+        end: Math.min(lines.length, ref.end_line + 2),
+        selectedStart: ref.line,
+        selectedEnd: ref.end_line,
+        range: true
+      };
+    }
+    if (ref.line) {
+      return {
+        start: Math.max(1, ref.line - 2),
+        end: Math.min(lines.length, ref.line + 2),
+        selectedStart: ref.line,
+        selectedEnd: ref.line,
+        range: false
+      };
+    }
+    return { start: 1, end: lines.length, selectedStart: null, selectedEnd: null, range: false };
+  }
+
+  function renderReferenceLines(ref, fileContent) {
+    const view = referenceView(ref, fileContent);
+    let highlightedLines = '';
+    for (let i = view.start; i <= view.end; i++) {
+      const selected = view.selectedStart !== null && i >= view.selectedStart && i <= view.selectedEnd;
+      const boundary = selected && (i === view.selectedStart || i === view.selectedEnd || !view.range);
+      const middle = view.range && selected && !boundary;
+      const classes = ['code-line'];
+      if (boundary) classes.push('highlight-target');
+      if (middle) classes.push('range-middle');
+      highlightedLines += `<div class="${classes.join(' ')}" data-line="${i}"><span class="line-number">${i}</span>${highlightedSourceLine(ref.file, i)}</div>`;
+    }
+    return { ...view, highlightedLines };
+  }
+
   function parseCodeRefs() {
     if (codeRefs !== null) return codeRefs;
     const el = document.getElementById('code-refs-data');
@@ -1016,28 +1112,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function createCodePanel(ref, fileContent) {
-    const lines = fileContent.split(/\r?\n/);
-    const targetLine = ref.line || 1;
-    const startLine = Math.max(1, targetLine - 2);
-    const endLine = Math.min(lines.length, targetLine + 8);
-
-    let highlightedLines = '';
-    for (let i = startLine; i <= endLine; i++) {
-      const isTarget = i === targetLine;
-      const highlighted = highlightedSourceLine(ref.file, i);
-      highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${i}"><span class="line-number">${i}</span>${highlighted}</div>`;
-    }
-
+    const view = renderReferenceLines(ref, fileContent);
     const panel = document.createElement('div');
     panel.className = 'code-reference-panel';
+    const location = ref.function
+      ? `Function ${ref.function}`
+      : ref.end_line
+        ? `Lines ${ref.line}-${ref.end_line}`
+        : ref.line
+          ? `Line ${ref.line}`
+          : 'Full file';
     panel.innerHTML = `
       <div class="code-panel-header">
         <span class="code-panel-file">${ref.file}</span>
-        ${ref.line ? `<span class="code-panel-line">Line ${ref.line}</span>` : ''}
+        <span class="code-panel-line">${location}</span>
         <button class="code-panel-close" aria-label="Close">&times;</button>
       </div>
       <div class="code-panel-content">
-        <div class="code-lines">${highlightedLines}</div>
+        <div class="code-lines">${view.highlightedLines}</div>
       </div>
     `;
 
@@ -1160,8 +1252,8 @@ function createPreviewTooltip() {
     previewTooltip.style.cssText = `
       position: fixed;
       z-index: 3000;
-      max-width: 400px;
-      min-width: 280px;
+      max-width: 80vw;
+      min-width: 650px;
       background: var(--bg-soft);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -1215,8 +1307,8 @@ function createPreviewTooltip() {
     }
   }
 
-  async function fetchCodePreview(filePath, line) {
-    const cacheKey = `${filePath}:${line || 0}`;
+  async function fetchCodePreview(filePath, line, endLine, functionName) {
+    const cacheKey = `${filePath}:${line || 0}:${endLine || 0}:${functionName || ''}`;
     if (linkPreviewCache.has(cacheKey)) {
       return linkPreviewCache.get(cacheKey);
     }
@@ -1236,19 +1328,17 @@ function createPreviewTooltip() {
 
       if (!content) return null;
 
-      const lines = content.split(/\r?\n/);
-      const targetLine = line || 1;
-      const startLine = Math.max(1, targetLine - 2);
-      const endLine = Math.min(lines.length, targetLine + 8);
-
-      let highlightedLines = '';
-      for (let i = startLine; i <= endLine; i++) {
-        const isTarget = i === targetLine;
-        const highlighted = highlightedSourceLine(filePath, i);
-        highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${i}"><span class="line-number">${i}</span>${highlighted}</div>`;
-      }
-
-      const preview = { highlightedLines, filePath, targetLine, startLine, endLine };
+      const previewRef = { file: filePath, line, end_line: endLine, function: functionName };
+      const view = renderReferenceLines(previewRef, content);
+      const preview = {
+        highlightedLines: view.highlightedLines,
+        filePath,
+        targetLine: line || null,
+        endLine: endLine || null,
+        functionName: functionName || null,
+        startLine: view.start,
+        end: view.end
+      };
       linkPreviewCache.set(cacheKey, preview);
       return preview;
     } catch (e) {
@@ -1294,12 +1384,19 @@ function createPreviewTooltip() {
             const refs = parseCodeRefs();
             const ref = refs.find(r => r.id === refId);
             if (ref) {
-              const preview = await fetchCodePreview(ref.file, ref.line);
+              const preview = await fetchCodePreview(ref.file, ref.line, ref.end_line, ref.function);
               if (preview) {
+                const previewLabel = preview.functionName
+                  ? `Function ${preview.functionName}`
+                  : preview.endLine
+                    ? `Lines ${preview.targetLine}-${preview.endLine}`
+                    : preview.targetLine
+                      ? `Line ${preview.targetLine}`
+                      : 'Full file';
                 const content = `
                   <div class="preview-header">
                     <span class="preview-file">${preview.filePath}</span>
-                    ${preview.targetLine ? `<span class="preview-line">Line ${preview.targetLine}</span>` : ''}
+                    <span class="preview-line">${previewLabel}</span>
                   </div>
                   <div class="preview-code">${preview.highlightedLines}</div>
                 `;

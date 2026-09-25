@@ -1258,6 +1258,11 @@ h1 .ext-tag {
   box-shadow: inset 3px 0 var(--primary);
 }
 
+.code-reference-panel .code-line.range-middle .line-number {
+  background: var(--primary-soft);
+  box-shadow: inset 2px 0 var(--primary);
+}
+
 .code-reference-panel .line-number {
   display: inline-block;
   width: 50px;
@@ -1335,6 +1340,11 @@ h1 .ext-tag {
 
 .link-preview-tooltip .code-line.highlight-target {
   background: rgba(99, 102, 241, 0.15);
+  box-shadow: inset 2px 0 var(--primary);
+}
+
+.link-preview-tooltip .code-line.range-middle .line-number {
+  background: var(--primary-soft);
   box-shadow: inset 2px 0 var(--primary);
 }
 
