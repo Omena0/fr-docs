@@ -30,7 +30,7 @@ TEMPLATE = """\
   <!-- Header -->
   <header class="site-header">
     <button class="menu-toggle" aria-label="Toggle menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24" aria-hidden="true">
         <path d="M3 12h18M3 6h18M3 18h18"/>
       </svg>
     </button>
@@ -68,11 +68,11 @@ TEMPLATE = """\
   </main>
 
   <!-- Back to top -->
-  <button class="back-to-top" aria-label="Back to top">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <path d="M18 15l-6-6-6 6"/>
-    </svg>
-  </button>
+<button class="back-to-top" aria-label="Back to top">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+        <path d="M18 15l-6-6-6 6"/>
+      </svg>
+    </button>
 
     {search_index_inline}
     <script id="code-refs-data" type="application/json">{code_refs_json}</script>

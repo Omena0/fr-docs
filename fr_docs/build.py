@@ -45,6 +45,25 @@ def _compute_hash(data: str) -> str:
     return xxhash.xxh3_128_hexdigest(data.encode("utf-8"))
 
 
+def _best_zstd_level(raw: bytes, configured: int) -> int:
+    """Pick the zstd compression level that minimizes compressed size.
+
+    Scans levels 1..configured and returns the one producing the smallest
+    output, breaking ties toward the lower level so decompression stays
+    fast. Level 22 is very slow and rarely beats lower levels on real
+    payloads, so this avoids paying for it when it doesn't help.
+    """
+    if len(raw) < 1024:
+        return min(configured, 19)
+
+    best_level, best_size = 1, len(zstandard.ZstdCompressor(level=1).compress(raw))
+    for level in range(2, configured + 1):
+        size = len(zstandard.ZstdCompressor(level=level).compress(raw))
+        if size < best_size:
+            best_level, best_size = level, size
+    return best_level
+
+
 def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
     """Minify a static asset in-place (JS via terser, CSS via html-minifier).
 
@@ -166,7 +185,7 @@ def _write_zstd_json(config, filename, value):
         if src.exists():
             return len(raw), src.stat().st_size
 
-    compressed = zstandard.ZstdCompressor(level=zstd_level(config)).compress(raw)
+    compressed = zstandard.ZstdCompressor(level=_best_zstd_level(raw, zstd_level(config))).compress(raw)
     path = Path(config["_out_dir"]) / filename
     path.write_bytes(compressed)
     cache.update_cache(filename, raw_hash)
@@ -413,8 +432,9 @@ def main(argv=None):
 
     # Compress search index
     search_json = json.dumps(search_index, separators=(",", ":"))
-    cctx = zstandard.ZstdCompressor(level=zstd_level(config))
-    compressed = cctx.compress(search_json.encode("utf-8"))
+    search_raw = search_json.encode("utf-8")
+    cctx = zstandard.ZstdCompressor(level=_best_zstd_level(search_raw, zstd_level(config)))
+    compressed = cctx.compress(search_raw)
     search_index_path = os.path.join(config["_out_dir"], search_index_filename(config))
     os.makedirs(os.path.dirname(search_index_path), exist_ok=True)
     with open(search_index_path, "wb") as sf:
@@ -432,7 +452,7 @@ def main(argv=None):
         )
 
     print(
-        f"   Search index: {len(search_json.encode('utf-8')):,} bytes → {len(compressed):,} zstd ({100 * len(compressed) / len(search_json.encode('utf-8')):.1f}%)"
+        f"   Search index: {len(search_raw):,} bytes → {len(compressed):,} zstd ({100 * len(compressed) / len(search_raw):.1f}%)"
     )
 
     # Save source files for code references
@@ -472,7 +492,7 @@ def main(argv=None):
                     "utf-8"
                 )
                 compressed = zstandard.ZstdCompressor(
-                    level=zstd_level(config)
+                    level=_best_zstd_level(raw, zstd_level(config))
                 ).compress(raw)
                 highlight_cache_file.parent.mkdir(parents=True, exist_ok=True)
                 highlight_cache_file.write_bytes(compressed)
