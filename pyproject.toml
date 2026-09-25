@@ -6,14 +6,48 @@ build-backend = "setuptools.build_meta"
 name = "fr-docs"
 version = "1.0.0"
 description = "Fast static documentation generator with search, versioning, and zero-config setup"
+readme = "README.md"
 requires-python = ">=3.14"
-license = {file="LICENSE.md"}
+license = {file = "LICENSE.md"}
+
+authors = [
+    {name = "Omena0"},
+]
+
+keywords = [
+    "documentation",
+    "documentation-generator",
+    "static-site-generator",
+    "markdown",
+    "github-pages",
+    "static-site",
+    "docs",
+]
+
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Build Tools",
+]
+
 dependencies = [
     "fastpylight>=0.1.18",
     "markdown",
     "xxhash>=4.0.1",
     "zstandard",
 ]
+
+[project.urls]
+Homepage = "https://omena0.dev/fr-docs/"
+Documentation = "https://omena0.dev/fr-docs/"
+Repository = "https://github.com/Omena0/fr-docs"
+Issues = "https://github.com/Omena0/fr-docs/issues"
 
 [project.scripts]
 fr-docs = "fr_docs.build:main"

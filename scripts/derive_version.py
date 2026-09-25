@@ -72,7 +72,7 @@ def latest_versioned_commit_subject(event: str) -> str | None:
     )
 
 
-def published_patches(major: str, minor: str) -> set[int]:
+def published_patches(major: str, minor: int) -> set[int]:
     """Return the set of patch numbers already published for major.minor."""
     try:
         with urllib.request.urlopen(PYPI_URL, timeout=15) as resp:
@@ -91,7 +91,7 @@ def published_patches(major: str, minor: str) -> set[int]:
     return patches
 
 
-def next_patch(major: str, minor: str, base: int) -> int:
+def next_patch(major: str, minor: int, base: int) -> int:
     """Smallest patch >= base not already published on PyPI."""
     existing = published_patches(major, minor)
     patch = base
