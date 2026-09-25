@@ -1,6 +1,10 @@
 """Initialize a new fr-docs documentation project."""
 
 import json
+import os
+import platform
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from urllib.request import urlopen
@@ -233,6 +237,33 @@ FAVICON_SVG_URL = (
     "https://raw.githubusercontent.com/Omena0/fr-docs/refs/heads/main/docs/favicon.svg"
 )
 
+GITHUB_WORKFLOW_YML = """name: Docs
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and Deploy fr-docs Site
+        uses: Omena0/fr-docs@main
+"""
+
 
 def download_file(url, dest_path):
     """Download a file from URL to dest_path."""
@@ -246,6 +277,53 @@ def download_file(url, dest_path):
     except Exception as e:  # noqa: BLE001
         print(f"  ✗ Failed to download {url}: {e}")
         return False
+
+
+def create_uv_venv(docs_dir):
+    """Create a uv virtual environment on Linux if uv is installed."""
+    if platform.system() != "Linux":
+        return
+
+    # Check if uv is available
+    if not shutil.which("uv"):
+        return
+
+    venv_path = docs_dir / ".venv"
+    if venv_path.exists():
+        print(f"  ⊘ Virtual environment already exists at {venv_path}")
+        return
+
+    try:
+        print("  Creating uv virtual environment...")
+        result = subprocess.run(
+            ["uv", "venv", str(venv_path)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode == 0:
+            print(f"  ✓ Created virtual environment at {venv_path}")
+        else:
+            print(f"  ✗ Failed to create virtual environment: {result.stderr}")
+    except Exception as e:  # noqa: BLE001
+        print(f"  ✗ Failed to create virtual environment: {e}")
+
+
+def create_github_workflow(docs_dir):
+    """Create .github/workflows/pages.yml for GitHub Pages deployment."""
+    workflow_dir = docs_dir.parent / ".github" / "workflows"
+    workflow_dir.mkdir(parents=True, exist_ok=True)
+    workflow_path = workflow_dir / "pages.yml"
+
+    if workflow_path.exists():
+        print(f"  ⊘ GitHub workflow already exists at {workflow_path}")
+        return
+
+    try:
+        workflow_path.write_text(GITHUB_WORKFLOW_YML, encoding="utf-8")
+        print(f"  ✓ Created GitHub Pages workflow at {workflow_path}")
+    except Exception as e:  # noqa: BLE001
+        print(f"  ✗ Failed to create GitHub workflow: {e}")
 
 
 def create_default_files(docs_dir, project_name):
@@ -292,6 +370,14 @@ def main(docs_dir_str="docs"):
     download_file(SCRIPT_JS_URL, docs_dir / "script.js")
     download_file(STYLE_CSS_URL, docs_dir / "style.css")
     download_file(FAVICON_SVG_URL, docs_dir / "favicon.svg")
+
+    # Create uv virtual environment on Linux
+    print("🔧 Setting up development environment...")
+    create_uv_venv(docs_dir)
+
+    # Create GitHub Pages workflow
+    print("📝 Creating GitHub Pages workflow...")
+    create_github_workflow(docs_dir)
 
     print()
     print("✅ Documentation project initialized!")

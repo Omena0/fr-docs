@@ -25,7 +25,7 @@ from .frontmatter import parse_frontmatter
 from .markdown import (
     auto_link_markdown,
     convert_markdown,
-    process_code_references,
+    process_code_references_html,
     rewrite_md_links,
 )
 from .slug import slug_output_name
@@ -244,13 +244,13 @@ def build_page(slug, config, slug_page_keys):
     if config.get("search_map") and feature_enabled(config, "auto_link"):
         body_md = auto_link_markdown(body_md, config["search_map"])
 
-    # Process code references
-    code_refs = []
-    if feature_enabled(config, "code_references"):
-        body_md, code_refs = process_code_references(body_md, config)
-
     body_html, toc_tokens = convert_markdown(body_md)
     body_html = rewrite_md_links(body_html, slug, slug_page_keys)
+
+    # Process code references (in HTML, after markdown conversion)
+    code_refs = []
+    if feature_enabled(config, "code_references"):
+        body_html, code_refs = process_code_references_html(body_html, config)
 
     if feature_enabled(config, "code_highlighting"):
         body_html = highlight_code_blocks(body_html)

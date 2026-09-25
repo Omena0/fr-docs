@@ -84,12 +84,16 @@ def rewrite_md_links(html_text, current_slug, slug_page_keys):
     """Rewrite internal .md links to output HTML filenames."""
 
     def _repl(m):
-        target = m.group(1)
-        anchor = m.group(2) or ""
+        # Match both double and single quotes
+        quote = m.group(1)
+        target = m.group(2)
+        anchor = m.group(3) or ""
         resolved = resolve_md_target(target, current_slug, slug_page_keys)
-        return f'href="{resolved}{anchor}"'
+        return f'href={quote}{resolved}{anchor}{quote}'
 
-    return re.sub(r'href="([^"]+)\.md(#[^"]*)?"', _repl, html_text)
+    # Match href="target.md#anchor" or href='target.md#anchor'
+    # Also handle query parameters: href="target.md?param=value#anchor"
+    return re.sub(r'href=(["\'])([^"\']+?\.md)(\?[^"\']*?)?(#[^"\']*)?\1', _repl, html_text)
 
 
 def should_absolutize_url(raw_url):
@@ -135,14 +139,59 @@ def absolutize_links(html_text, page_url, site_prefix):
 def process_code_references(md_text, config):
     """Process code reference links in markdown: [text](path/to/file.py:123).
 
-    Returns tuple of (processed_text, code_refs) where code_refs is a list of
-    dicts with keys: file, line, column, link_text.
+    NOTE: This is kept for backwards compatibility but does nothing.
+    Code references are now processed in HTML after markdown conversion
+    via process_code_references_html() to avoid HTML escaping issues.
+
+    Returns tuple of (processed_text, code_refs).
     """
     if not config.get("features", {}).get("code_references", True):
         return md_text, []
 
+    # Just return the original text - we'll process in HTML stage
+    return md_text, []
+
+
+def process_code_references_html(html_text, config):
+    """Process code reference links in HTML: [text](path/to/file.py:123).
+
+    Only processes references INSIDE <pre><code> blocks.
+    Returns tuple of (processed_html, code_refs).
+    """
+    if not config.get("features", {}).get("code_references", True):
+        return html_text, []
+
+    # Pattern to match <pre><code> blocks
+    pre_code_pat = re.compile(r'(<pre><code[^>]*>[\s\S]*?</code></pre>)')
+
     code_refs = []
     ref_counter = 0
+    processed_parts = []
+    last_end = 0
+
+    for match in pre_code_pat.finditer(html_text):
+        # Add text before the code block
+        processed_parts.append(html_text[last_end:match.start()])
+
+        # Process the code block
+        code_block = match.group(1)
+        processed_block, block_refs = _process_code_refs_in_html_block(code_block, ref_counter)
+        code_refs.extend(block_refs)
+        ref_counter += len(block_refs)
+        processed_parts.append(processed_block)
+
+        last_end = match.end()
+
+    # Add remaining text
+    processed_parts.append(html_text[last_end:])
+
+    return "".join(processed_parts), code_refs
+
+
+def _process_code_refs_in_html_block(block_html, start_counter):
+    """Process code references inside a single <pre><code> block."""
+    code_refs = []
+    ref_counter = start_counter
 
     def _repl(m):
         nonlocal ref_counter
@@ -159,16 +208,14 @@ def process_code_references(md_text, config):
                 "id": ref_id,
                 "file": file_path,
                 "line": line,
-                "column": None,  # Could be extended to support column
+                "column": None,
                 "link_text": link_text,
             }
         )
 
-        # Replace with a special link that JavaScript can handle
-        line_suffix = f":{line}" if line else ""
-        return f'<a href="#coderef:{file_path}{line_suffix}" class="code-reference" data-coderef-id="{ref_id}">{html.escape(link_text)}</a>'
+        return f'<a href="#coderef-{ref_id}" class="code-reference" data-coderef-id="{ref_id}" data-coderef-file="{html.escape(file_path, quote=True)}" data-coderef-line="{line if line else ""}">{html.escape(link_text)}</a>'
 
-    processed = CODE_REF_RE.sub(_repl, md_text)
+    processed = CODE_REF_RE.sub(_repl, block_html)
     return processed, code_refs
 
 
@@ -205,20 +252,9 @@ def auto_link_markdown(md_text, search_map):
     text = link_pat.sub(_ln, text)
 
     def _transform_inline_content(content):
+        # Just escape and wrap in <code> - don't auto-link inside inline code
         esc = html.escape(content)
-        for name in sorted(search_map.keys(), key=len, reverse=True):
-            dest = search_map[name]
-            pattern = f"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])"
-            esc = re.sub(pattern, f'<a href="{dest}">{name}</a>', esc)
-
-        def _decor_replace(m):
-            nm = m.group(1)
-            return f'<a href="{_DECORATORS_DEST}#{nm}">@{nm}</a>'
-
-        esc = re.sub(r"@([A-Za-z_][A-Za-z0-9_]*)", _decor_replace, esc)
-
         esc = esc.replace("[", "&#91;").replace("]", "&#93;")
-
         return f"<code>{esc}</code>"
 
     transformed_inlines = [_transform_inline_content(c) for c in inline_codes]

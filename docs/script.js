@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
   }
   function saveState(state) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { }
   }
 
   // ── Restore sidebar collapsed/expanded state ────────────────
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          const id = entry.target.id;
+          const { id } = entry.target;
           allLinks.forEach(l => {
             l.classList.toggle('active', l.getAttribute('href') === '#' + id);
           });
@@ -319,10 +319,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const decompressed = fzstd.decompress(compressed);
         const json = new TextDecoder().decode(decompressed);
         searchIndex = JSON.parse(json);
-        
+
         // Also load symbol index
         await loadSymbolIndex();
-        
+
         return emitSearchReady();
       } catch (e) {
         console.error('Failed to fetch/decompress search index:', e);
@@ -348,10 +348,10 @@ document.addEventListener('DOMContentLoaded', () => {
       void loadSearchIndex();
     }, SEARCH_PRELOAD_DELAY_MS);
   }
-scheduleSearchIndexLoad();
+  scheduleSearchIndexLoad();
 
 
-  let searchIndex = null;
+  searchIndex = null;
   let symbolIndex = null;
 
   // ── Load symbol index ──────────────────────────────────────────
@@ -436,7 +436,7 @@ scheduleSearchIndexLoad();
         const name = (sym.name || '').toLowerCase();
         const file = (sym.file || '').toLowerCase();
         const type = (sym.type || '').toLowerCase();
-        
+
         if (name === qLower) score += 150;
         else if (name.includes(qLower)) score += 80 - Math.min(50, name.indexOf(qLower));
         else {
@@ -446,10 +446,10 @@ scheduleSearchIndexLoad();
             if (type.includes(t)) score += 5;
           }
         }
-        
+
         if (score > 0) {
-          const hit = { 
-            url: `#coderef:${sym.file}:${sym.line}`, 
+          const hit = {
+            url: `#coderef:${sym.file}:${sym.line}`,
             title: `${sym.name} (${sym.type})`,
             text: `in ${sym.file}:${sym.line} — ${sym.context || ''}`,
             score: score,
@@ -685,9 +685,9 @@ scheduleSearchIndexLoad();
         const li = a.closest('li') || a.parentElement;
         if (!allowed.has(base)) {
           if (li) li.style.display = 'none'; else a.style.display = 'none';
-        } else {
-          if (li) li.style.display = ''; else a.style.display = '';
         }
+        else if (li) li.style.display = '';
+        else a.style.display = '';
       });
 
       // Hide entire sections with no visible links
@@ -829,7 +829,7 @@ scheduleSearchIndexLoad();
         if (!v || !v.commit || !v.code) continue;
         if (!codeRE.test(String(v.code))) continue;
         if (useFilter) {
-          const avail = pagesByCommit[v.commit] || pagesByCommit[v.commit.slice(0,8)];
+          const avail = pagesByCommit[v.commit] || pagesByCommit[v.commit.slice(0, 8)];
           if (!avail || !avail.includes(pageBase)) continue;
         }
         const opt = document.createElement('option');
@@ -838,7 +838,7 @@ scheduleSearchIndexLoad();
         // Display only the compact code in the select
         opt.textContent = v.code;
         if (v.label) opt.dataset.label = v.label;
-        if (v.commit) opt.dataset.commit = v.commit.slice(0,8);
+        if (v.commit) opt.dataset.commit = v.commit.slice(0, 8);
         sel.appendChild(opt);
       }
     } else {
@@ -850,12 +850,12 @@ scheduleSearchIndexLoad();
       if (commits.length) {
         const latest = commits[commits.length - 1];
         if (!useFilter || (pagesByCommit[latest] && pagesByCommit[latest].includes(pageBase))) {
-          const opt = document.createElement('option'); opt.value = latest; opt.textContent = latest.slice(0,8); opt.dataset.commit = latest.slice(0,8); sel.appendChild(opt);
+          const opt = document.createElement('option'); opt.value = latest; opt.textContent = latest.slice(0, 8); opt.dataset.commit = latest.slice(0, 8); sel.appendChild(opt);
         }
         const recent = commits.slice(-10).reverse();
         for (const c of recent) {
           if (useFilter && (!(pagesByCommit[c] && pagesByCommit[c].includes(pageBase)))) continue;
-          const o = document.createElement('option'); o.value = c; o.textContent = c.slice(0,8); o.dataset.commit = c.slice(0,8); sel.appendChild(o);
+          const o = document.createElement('option'); o.value = c; o.textContent = c.slice(0, 8); o.dataset.commit = c.slice(0, 8); sel.appendChild(o);
         }
       }
     }
@@ -872,7 +872,7 @@ scheduleSearchIndexLoad();
         let found = Array.from(sel.options).find(o => String(o.value).toLowerCase() === String(v).toLowerCase());
         if (!found) {
           // Try matching by short commit in data-commit
-          const short = String(v).slice(0,8).toLowerCase();
+          const short = String(v).slice(0, 8).toLowerCase();
           found = Array.from(sel.options).find(o => o.dataset && o.dataset.commit && String(o.dataset.commit).toLowerCase() === short);
         }
         if (found) {
@@ -1046,7 +1046,7 @@ scheduleSearchIndexLoad();
       .replace(/&/g, '&')
       .replace(/</g, '<')
       .replace(/>/g, '>');
-    
+
     // Very basic syntax highlighting for Python-like languages
     if (language === 'python') {
       return escaped
@@ -1065,7 +1065,7 @@ scheduleSearchIndexLoad();
     const targetLine = ref.line || 1;
     const startLine = Math.max(1, targetLine - 2);
     const endLine = Math.min(lines.length, targetLine + 8);
-    
+
     let highlightedLines = '';
     for (let i = startLine; i <= endLine; i++) {
       const lineNum = i;
@@ -1074,7 +1074,7 @@ scheduleSearchIndexLoad();
       const highlighted = highlightCode(lineContent, language);
       highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${lineNum}"><span class="line-number">${lineNum}</span>${highlighted}</div>`;
     }
-    
+
     const panel = document.createElement('div');
     panel.className = 'code-reference-panel';
     panel.innerHTML = `
@@ -1087,13 +1087,13 @@ scheduleSearchIndexLoad();
         <div class="code-lines">${highlightedLines}</div>
       </div>
     `;
-    
+
     // Add close handler
     panel.querySelector('.code-panel-close').addEventListener('click', () => {
       panel.remove();
       document.body.classList.remove('code-panel-open');
     });
-    
+
     // Close on outside click
     panel.addEventListener('click', (e) => {
       if (e.target === panel) {
@@ -1101,7 +1101,7 @@ scheduleSearchIndexLoad();
         document.body.classList.remove('code-panel-open');
       }
     });
-    
+
     // Close on Escape
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
@@ -1111,7 +1111,7 @@ scheduleSearchIndexLoad();
       }
     };
     document.addEventListener('keydown', handleEscape);
-    
+
     return panel;
   }
 
@@ -1138,7 +1138,7 @@ scheduleSearchIndexLoad();
         });
       return;
     }
-    
+
     const panel = createCodePanel(ref, fileContent);
     document.body.appendChild(panel);
     document.body.classList.add('code-panel-open');
@@ -1151,9 +1151,10 @@ scheduleSearchIndexLoad();
 
   function initCodeReferences() {
     if (!parseCodeRefs().length) return;
-    
+
     loadSourceFiles().then(() => {
-      document.querySelectorAll('a.code-reference').forEach(link => {
+      // Handle clicks on code reference links in content (data-coderef-id format)
+      document.querySelectorAll('a.code-reference[data-coderef-id]').forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault();
           const refId = link.dataset.coderefId;
@@ -1161,6 +1162,27 @@ scheduleSearchIndexLoad();
           const ref = refs.find(r => r.id === refId);
           if (ref) {
             showCodePanel(ref);
+          }
+        });
+      });
+
+      // Handle clicks on search result links (#coderef:file.py:line format)
+      document.querySelectorAll('a[href^="#coderef:"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const href = link.getAttribute('href');
+          const match = href.match(/^#coderef:([^:]+):(\d+)$/);
+          if (match) {
+            const file = match[1];
+            const line = parseInt(match[2], 10);
+            const refs = parseCodeRefs();
+            const ref = refs.find(r => r.file === file && r.line === line);
+            if (ref) {
+              showCodePanel(ref);
+            } else {
+              // If not found in current page, try to fetch and show anyway
+              showCodePanel({ file, line, id: 'search-result' });
+            }
           }
         });
       });
@@ -1221,7 +1243,7 @@ scheduleSearchIndexLoad();
       .replace(/&/g, '&')
       .replace(/</g, '<')
       .replace(/>/g, '>');
-    
+
     if (language === 'python') {
       return escaped
         .replace(/^(\s*)(#.*)$/gm, '$1<span class="cm">$2</span>')
@@ -1245,10 +1267,10 @@ scheduleSearchIndexLoad();
       const html = await response.text();
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
-      
+
       const h1 = doc.querySelector('h1');
       const title = h1 ? h1.textContent.trim() : '';
-      
+
       // Get first paragraph after h1
       let description = '';
       if (h1) {
@@ -1261,7 +1283,7 @@ scheduleSearchIndexLoad();
           next = next.nextElementSibling;
         }
       }
-      
+
       const preview = { title, description };
       linkPreviewCache.set(cacheKey, preview);
       return preview;
@@ -1281,7 +1303,7 @@ scheduleSearchIndexLoad();
       // Try to get from sourceFiles first
       await loadSourceFiles();
       let content = sourceFiles[filePath];
-      
+
       if (!content) {
         const response = await fetch(toSiteHref(filePath), { cache: 'force-cache' });
         if (response.ok) {
@@ -1289,14 +1311,14 @@ scheduleSearchIndexLoad();
           sourceFiles[filePath] = content;
         }
       }
-      
+
       if (!content) return null;
-      
+
       const lines = content.split('\n');
       const targetLine = line || 1;
       const startLine = Math.max(1, targetLine - 2);
       const endLine = Math.min(lines.length, targetLine + 8);
-      
+
       const language = getLanguageFromPath(filePath);
       let highlightedLines = '';
       for (let i = startLine; i <= endLine; i++) {
@@ -1306,7 +1328,7 @@ scheduleSearchIndexLoad();
         const highlighted = highlightCode(lineContent, language);
         highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${lineNum}"><span class="line-number">${lineNum}</span>${highlighted}</div>`;
       }
-      
+
       const preview = { highlightedLines, filePath, targetLine, startLine, endLine };
       linkPreviewCache.set(cacheKey, preview);
       return preview;
@@ -1332,19 +1354,20 @@ scheduleSearchIndexLoad();
 
   function initLinkPreviews() {
     if (!featureEnabled('link_preview')) return;
-    
+
     document.querySelectorAll('a[href]').forEach(link => {
       const href = link.getAttribute('href');
       if (!href) return;
-      
+
       // Skip external links, anchors, and special links
-      if (href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:') || href.startsWith('#')) return;
-      
-      // Check if it's a code reference link
+      if (href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) return;
+
+      // Check if it's a code reference link (data-coderef-id format or #coderef: format)
       const isCodeRef = link.classList.contains('code-reference');
-      
+      const isSearchCodeRef = href.startsWith('#coderef:');
+
       let hoverTimeout = null;
-      
+
       link.addEventListener('mouseenter', async (e) => {
         hoverTimeout = setTimeout(async () => {
           if (isCodeRef) {
@@ -1364,7 +1387,25 @@ scheduleSearchIndexLoad();
                 showPreviewTooltip(e.clientX, e.clientY, content);
               }
             }
-          } else {
+          } else if (isSearchCodeRef) {
+            // Handle search result code reference links
+            const match = href.match(/^#coderef:([^:]+):(\d+)$/);
+            if (match) {
+              const file = match[1];
+              const line = parseInt(match[2], 10);
+              const preview = await fetchCodePreview(file, line);
+              if (preview) {
+                const content = `
+                  <div class="preview-header">
+                    <span class="preview-file">${preview.filePath}</span>
+                    ${preview.targetLine ? `<span class="preview-line">Line ${preview.targetLine}</span>` : ''}
+                  </div>
+                  <div class="preview-code">${preview.highlightedLines}</div>
+                `;
+                showPreviewTooltip(e.clientX, e.clientY, content);
+              }
+            }
+          } else if (!href.startsWith('#')) {
             // Regular page link
             const preview = await fetchPagePreview(href);
             if (preview && (preview.title || preview.description)) {
@@ -1377,12 +1418,12 @@ scheduleSearchIndexLoad();
           }
         }, 300); // 300ms delay before showing preview
       });
-      
+
       link.addEventListener('mouseleave', () => {
         if (hoverTimeout) clearTimeout(hoverTimeout);
         hidePreviewTooltip();
       });
-      
+
       link.addEventListener('mousemove', (e) => {
         if (previewTooltip && previewTooltip.style.opacity === '1') {
           previewTooltip.style.left = `${e.clientX + 15}px`;

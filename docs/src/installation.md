@@ -1,5 +1,7 @@
 # Installation
 
+How to install and set up fr-docs.
+
 ## Prerequisites
 
 - Python >= 3.14
@@ -62,8 +64,6 @@ fr-docs --help
 ```
 
 Expected output should show the available commands and options.
-
-[Back to Home](index.md)
 
 ## Upgrade
 

@@ -8,7 +8,7 @@
       ["index", "Home"],
       ["installation", "Installation"],
       ["quickstart", "Quickstart"],
-      ["configuration", "Configuration"]
+      ["config.json", "Configuration"]
     ]]
   ],
   "build": {

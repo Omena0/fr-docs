@@ -1,5 +1,7 @@
 # Quickstart
 
+Quick example project setup.
+
 ## Step 1: Create a Project
 
 ```bash

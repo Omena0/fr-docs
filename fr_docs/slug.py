@@ -8,8 +8,20 @@ def slug_basename(slug):
 
 
 def normalize_slug(slug):
-    """Normalize slugs to forward-slash format for cross-platform consistency."""
-    return str(slug).replace("\\", "/").strip("/")
+    """Normalize slugs to forward-slash format for cross-platform consistency.
+    Also resolves relative path segments like '..' and '.'.
+    """
+    # Convert to forward slashes and strip
+    normalized = str(slug).replace("\\", "/").strip("/")
+    # Resolve relative path segments
+    parts = []
+    for part in normalized.split("/"):
+        if part == "..":
+            if parts:
+                parts.pop()
+        elif part and part != ".":
+            parts.append(part)
+    return "/".join(parts)
 
 
 def build_slug_page_keys(slugs):
