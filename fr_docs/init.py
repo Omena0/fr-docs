@@ -1,11 +1,9 @@
 """Initialize a new fr-docs documentation project."""
 
 import json
-import os
 import sys
 from pathlib import Path
 from urllib.request import urlopen
-
 
 DEFAULT_CONFIG = {
     "project_name": "My Project",
@@ -15,12 +13,15 @@ DEFAULT_CONFIG = {
     "out_dir": "site",
     "docs_dir": ".",
     "sidebar": [
-        ["Getting Started", [
-            ["index", "Home"],
-            ["installation", "Installation"],
-            ["quickstart", "Quickstart"],
-            ["configuration", "Configuration"]
-        ]]
+        [
+            "Getting Started",
+            [
+                ["index", "Home"],
+                ["installation", "Installation"],
+                ["quickstart", "Quickstart"],
+                ["configuration", "Configuration"],
+            ],
+        ]
     ],
     "build": {
         "workers": 6,
@@ -28,11 +29,11 @@ DEFAULT_CONFIG = {
         "optimize_html": True,
         "zstd_level": 22,
         "search_index_filename": "search_index.zst",
-        "git_meta_filename": "git_meta.json"
+        "git_meta_filename": "git_meta.json",
     },
     "versioning": {
         "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
-        "live_label": "Live"
+        "live_label": "Live",
     },
     "features": {
         "backlinks": True,
@@ -44,8 +45,8 @@ DEFAULT_CONFIG = {
         "link_preview": True,
         "code_highlighting": True,
         "blockquotes": True,
-        "ext_tags": True
-    }
+        "ext_tags": True,
+    },
 }
 
 DEFAULT_INDEX_MD = """# Welcome to {project_name}
@@ -222,9 +223,15 @@ Create a `config.json` in your docs directory:
 ```
 """
 
-SCRIPT_JS_URL = "https://raw.githubusercontent.com/Omena0/fr-docs/refs/heads/main/docs/script.js"
-STYLE_CSS_URL = "https://raw.githubusercontent.com/Omena0/fr-docs/refs/heads/main/docs/style.css"
-FAVICON_SVG_URL = "https://raw.githubusercontent.com/Omena0/fr-docs/refs/heads/main/docs/favicon.svg"
+SCRIPT_JS_URL = (
+    "https://raw.githubusercontent.com/Omena0/fr-docs/refs/heads/main/docs/script.js"
+)
+STYLE_CSS_URL = (
+    "https://raw.githubusercontent.com/Omena0/fr-docs/refs/heads/main/docs/style.css"
+)
+FAVICON_SVG_URL = (
+    "https://raw.githubusercontent.com/Omena0/fr-docs/refs/heads/main/docs/favicon.svg"
+)
 
 
 def download_file(url, dest_path):
@@ -236,7 +243,7 @@ def download_file(url, dest_path):
         dest_path.write_bytes(content)
         print(f"  ✓ Saved to {dest_path}")
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"  ✗ Failed to download {url}: {e}")
         return False
 
@@ -262,13 +269,13 @@ def create_default_files(docs_dir, project_name):
 def main(docs_dir_str="docs"):
     """Initialize a new documentation project."""
     docs_dir = Path(docs_dir_str).resolve()
-    
+
     print(f"📁 Initializing fr-docs project in {docs_dir}")
-    
+
     # Create directories
     docs_dir.mkdir(parents=True, exist_ok=True)
     (docs_dir / "src").mkdir(parents=True, exist_ok=True)
-    
+
     # Create config.json
     config_path = docs_dir / "config.json"
     config = DEFAULT_CONFIG.copy()
@@ -276,23 +283,23 @@ def main(docs_dir_str="docs"):
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
     print(f"  ✓ Created {config_path}")
-    
+
     # Create default markdown files
     create_default_files(docs_dir, config["project_name"])
-    
+
     # Download static assets
     print("📥 Downloading static assets...")
     download_file(SCRIPT_JS_URL, docs_dir / "script.js")
     download_file(STYLE_CSS_URL, docs_dir / "style.css")
     download_file(FAVICON_SVG_URL, docs_dir / "favicon.svg")
-    
+
     print()
     print("✅ Documentation project initialized!")
     print()
     print("Next steps:")
     print(f"  1. Edit {config_path} to customize your project")
     print(f"  2. Add markdown files to {docs_dir}/src/")
-    print(f"  3. Run 'fr-docs build' to generate your site")
+    print("  3. Run 'fr-docs build' to generate your site")
     print(f"  4. Preview with 'cd {docs_dir}/site && python -m http.server 8000'")
 
 

@@ -16,6 +16,7 @@ import zstandard
 
 from .config import load_config
 from .config_accessors import (
+    feature_enabled,
     out_dir,
     project_name,
     search_index_filename,
@@ -23,7 +24,6 @@ from .config_accessors import (
     src_dir,
     workers,
     zstd_level,
-    feature_enabled,
 )
 from .git import build_version_options, collect_git_metadata, write_git_metadata
 from .html_pipeline import build_page
@@ -40,50 +40,110 @@ def collect_source_files(config):
     source_files = {}
     docs_path = Path(config["_docs_dir"])
     src_dir_path = Path(config["_src_dir"])
-    
+
     # Look for source files in common locations
     search_dirs = [
         docs_path.parent,  # Project root (where fr_docs source is)
         src_dir_path.parent,  # Parent of src dir
         docs_path,  # Docs directory itself
     ]
-    
-    extensions = {'.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.cpp', '.c', '.h', '.hpp', 
-                  '.rs', '.go', '.rb', '.php', '.cs', '.kt', '.swift', '.scala', '.clj', 
-                  '.hs', '.ml', '.fs', '.vim', '.sh', '.bash', '.zsh', '.fish', '.ps1', 
-                  '.bat', '.cmd', '.sql', '.html', '.htm', '.xml', '.json', '.yaml', '.yml', 
-                  '.toml', '.ini', '.cfg', '.conf', '.md', '.txt', '.rst', '.css', '.scss', 
-                  '.sass', '.less', '.styl', '.vue', '.svelte', '.astro', '.mdx'}
-    
-    ignore_dirs = {'__pycache__', 'node_modules', 'venv', 'env', '.git', 'dist', 'build', 'target', 'out', 'site'}
-    
+
+    extensions = {
+        ".py",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".java",
+        ".cpp",
+        ".c",
+        ".h",
+        ".hpp",
+        ".rs",
+        ".go",
+        ".rb",
+        ".php",
+        ".cs",
+        ".kt",
+        ".swift",
+        ".scala",
+        ".clj",
+        ".hs",
+        ".ml",
+        ".fs",
+        ".vim",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".ps1",
+        ".bat",
+        ".cmd",
+        ".sql",
+        ".html",
+        ".htm",
+        ".xml",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".ini",
+        ".cfg",
+        ".conf",
+        ".md",
+        ".txt",
+        ".rst",
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",
+        ".styl",
+        ".vue",
+        ".svelte",
+        ".astro",
+        ".mdx",
+    }
+
+    ignore_dirs = {
+        "__pycache__",
+        "node_modules",
+        "venv",
+        "env",
+        ".git",
+        "dist",
+        "build",
+        "target",
+        "out",
+        "site",
+    }
+
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
         try:
-            for file_path in search_dir.rglob('*'):
+            for file_path in search_dir.rglob("*"):
                 if file_path.is_file() and file_path.suffix in extensions:
                     # Get relative path from search_dir for filtering
                     try:
                         rel_path = file_path.relative_to(search_dir)
                     except ValueError:
                         continue
-                    
+
                     # Skip hidden directories in the relative path
                     rel_parts = rel_path.parts
-                    if any(p.startswith('.') for p in rel_parts):
+                    if any(p.startswith(".") for p in rel_parts):
                         continue
                     if any(p in ignore_dirs for p in rel_parts):
                         continue
-                    
+
                     try:
-                        content = file_path.read_text(encoding='utf-8')
+                        content = file_path.read_text(encoding="utf-8")
                         source_files[str(rel_path)] = content
-                    except (OSError, UnicodeDecodeError):
+                    except OSError, UnicodeDecodeError:
                         pass
         except OSError:
             pass
-    
+
     return source_files
 
 

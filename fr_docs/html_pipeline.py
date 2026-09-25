@@ -11,15 +11,15 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 from .config_accessors import (
+    feature_enabled,
+    project_name,
+    sidebar,
+)
+from .config_accessors import (
     minify_html as cfg_minify_html,
 )
 from .config_accessors import (
     optimize_html as cfg_optimize_html,
-)
-from .config_accessors import (
-    project_name,
-    sidebar,
-    feature_enabled,
 )
 from .frontmatter import parse_frontmatter
 from .markdown import (
@@ -67,18 +67,18 @@ def _render_template_placeholders(config):
     def _get_version_selector_html():
         if not feature_enabled(config, "versioning"):
             return ""
-        return f'''<div class="version-selector-wrap">
+        return f"""<div class="version-selector-wrap">
           <select id="version-selector" class="version-selector" aria-label="Select version">
               {config.get("_version_options", "")}
           </select>
-      </div>'''
+      </div>"""
 
     def _get_header_search_html():
         if not feature_enabled(config, "search"):
             return ""
-        return '''<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        return """<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">
-      <div id="search-results" class="search-results"></div>'''
+      <div id="search-results" class="search-results"></div>"""
 
     return {
         "site_prefix": output_href("", config),
@@ -255,7 +255,7 @@ def build_page(slug, config, slug_page_keys):
 
     body_html, toc_tokens = convert_markdown(body_md)
     body_html = rewrite_md_links(body_html, slug, slug_page_keys)
-    
+
     if feature_enabled(config, "code_highlighting"):
         body_html = highlight_code_blocks(body_html)
     if feature_enabled(config, "blockquotes"):
@@ -268,22 +268,35 @@ def build_page(slug, config, slug_page_keys):
     related_html = ""
     search_index = config.get("_search_index", [])
     if search_index:
-        page_data = next((p for p in search_index if p.get("slug") == slug or p.get("source_slug") == slug), None)
+        page_data = next(
+            (
+                p
+                for p in search_index
+                if p.get("slug") == slug or p.get("source_slug") == slug
+            ),
+            None,
+        )
         if page_data:
             # Check for tags in original markdown
             has_backlinks_tag = "<backlinks>" in body_md
             has_related_tag = "<related>" in body_md
-            
+
             if feature_enabled(config, "backlinks") and page_data.get("backlinks"):
-                backlinks_html = _render_backlinks(page_data["backlinks"], search_index, config)
+                backlinks_html = _render_backlinks(
+                    page_data["backlinks"], search_index, config
+                )
                 if has_backlinks_tag:
                     # Replace both paragraph-wrapped and bare tag
                     body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
-                    body_html = body_html.replace("<p><backlinks></p>\n", backlinks_html)
+                    body_html = body_html.replace(
+                        "<p><backlinks></p>\n", backlinks_html
+                    )
                     body_html = body_html.replace("<backlinks>", backlinks_html)
-            
+
             if feature_enabled(config, "related") and page_data.get("related"):
-                related_html = _render_related(page_data["related"], search_index, config)
+                related_html = _render_related(
+                    page_data["related"], search_index, config
+                )
                 if has_related_tag:
                     # Replace both paragraph-wrapped and bare tag
                     body_html = body_html.replace("<p><related></p>", related_html)
@@ -293,7 +306,9 @@ def build_page(slug, config, slug_page_keys):
     subtitle_html = f'<p class="subtitle">{subtitle}</p>' if subtitle else ""
 
     ext_sections = _determine_ext_sections(config)
-    sidebar_html = build_toc_sidebar(toc_tokens, slug, sidebar(config), ext_sections, config)
+    sidebar_html = build_toc_sidebar(
+        toc_tokens, slug, sidebar(config), ext_sections, config
+    )
 
     og_description = subtitle or f"{title} — {project_name(config)} documentation"
 
@@ -350,13 +365,13 @@ def _render_backlinks(backlinks, search_index, config):
             items.append(f'<li><a href="{url}">{title}</a></li>')
     if not items:
         return ""
-    return f'''<h2>Backlinks</h2>
+    return f"""<h2>Backlinks</h2>
 <details class="backlinks-details">
   <summary>Show {len(items)} backlinks</summary>
   <ul>
-    {''.join(items)}
+    {"".join(items)}
   </ul>
-</details>'''
+</details>"""
 
 
 def _render_related(related, search_index, config):
@@ -372,9 +387,9 @@ def _render_related(related, search_index, config):
             items.append(f'<li><a href="{url}">{title}</a></li>')
     if not items:
         return ""
-    return f'''<h2>Related</h2>
+    return f"""<h2>Related</h2>
 <div class="related">
   <ul>
-    {''.join(items)}
+    {"".join(items)}
   </ul>
-</div>'''
+</div>"""

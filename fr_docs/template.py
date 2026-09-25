@@ -86,12 +86,14 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=N
 
     parts = []
     if config and feature_enabled(config, "search"):
-        parts.extend([
-            '<div class="search-box">',
-            '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
-            '  <input type="text" id="sidebar-search" placeholder="Search docs…">',
-            "</div>",
-        ])
+        parts.extend(
+            [
+                '<div class="search-box">',
+                '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+                '  <input type="text" id="sidebar-search" placeholder="Search docs…">',
+                "</div>",
+            ]
+        )
 
     for section_name, pages in sidebar_config:
         key = _section_key(section_name)
@@ -114,7 +116,9 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=N
     return "\n".join(parts)
 
 
-def build_toc_sidebar(toc_tokens, current_slug, sidebar_config, ext_sections=None, config=None):
+def build_toc_sidebar(
+    toc_tokens, current_slug, sidebar_config, ext_sections=None, config=None
+):
     """Build the sidebar with 'On This Page' TOC at the top, then nav sections."""
     nav = build_sidebar_html(current_slug, sidebar_config, ext_sections, config)
     if not toc_tokens:

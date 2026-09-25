@@ -7,15 +7,17 @@ Usage:
     fr-docs init [--dir DIR]
 """
 
-import sys
 import argparse
+import sys
 
 from .build import main as build_main
 from .init import main as init_main
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="fr-docs", description="Fast static documentation generator")
+    parser = argparse.ArgumentParser(
+        prog="fr-docs", description="Fast static documentation generator"
+    )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Build command
@@ -31,7 +33,9 @@ def main():
     )
 
     # Init command
-    init_parser = subparsers.add_parser("init", help="Initialize a new documentation project")
+    init_parser = subparsers.add_parser(
+        "init", help="Initialize a new documentation project"
+    )
     init_parser.add_argument(
         "dir",
         nargs="?",
@@ -54,7 +58,12 @@ def main():
         init_main(args.dir)
     else:
         # Default to build for backwards compatibility
-        if len(sys.argv) > 1 and sys.argv[1] in ("--production", "--config", "--help", "-h"):
+        if len(sys.argv) > 1 and sys.argv[1] in (
+            "--production",
+            "--config",
+            "--help",
+            "-h",
+        ):
             build_main(sys.argv[1:])
         else:
             parser.print_help()
