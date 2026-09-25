@@ -4,9 +4,7 @@
 def slug_basename(slug):
     """Extract the filename part from a possibly prefixed slug (e.g. 'core/entity' → 'entity')."""
     normalized = str(slug).replace("\\", "/").strip("/")
-    if not normalized:
-        return ""
-    return normalized.rsplit("/", 1)[-1]
+    return normalized.rsplit("/", 1)[-1] if normalized else ""
 
 
 def normalize_slug(slug):

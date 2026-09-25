@@ -6,7 +6,7 @@ def normalized_site_prefix(config):
     if not prefix:
         return "/"
     if not prefix.startswith("/"):
-        prefix = "/" + prefix
+        prefix = f"/{prefix}"
     if not prefix.endswith("/"):
         prefix += "/"
     return prefix
@@ -17,9 +17,7 @@ def output_href(path, config):
     prefix = normalized_site_prefix(config)
     if not config.get("production", False):
         return clean
-    if not prefix:
-        return clean
-    return prefix + clean
+    return prefix + clean if prefix else clean
 
 
 def output_site_prefix(config):

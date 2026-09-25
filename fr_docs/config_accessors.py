@@ -10,7 +10,7 @@ def site_prefix(config):
     if not prefix:
         return "/"
     if not prefix.startswith("/"):
-        prefix = "/" + prefix
+        prefix = f"/{prefix}"
     if not prefix.endswith("/"):
         prefix += "/"
     return prefix

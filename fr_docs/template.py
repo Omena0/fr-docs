@@ -131,8 +131,7 @@ def build_toc_sidebar(
     ]
     for token in toc_tokens:
         toc_parts.append(f'    <li><a href="#{token["id"]}">{token["name"]}</a></li>')
-        children = token.get("children", [])
-        if children:
+        if children := token.get("children", []):
             toc_parts.append(
                 f'    <li><ul class="toc-sub" data-parent="{token["id"]}">'
             )

@@ -43,10 +43,10 @@ def _determine_ext_sections(config):
     """Determine which sections should have the [ext] tag."""
     sidebar_config = sidebar(config)
     ext_sections = []
-    for section_name, _ in sidebar_config:
-        if "[ext]" in section_name:
-            ext_sections.append(section_name)
-    return ext_sections if ext_sections else {"Extensions"}
+    ext_sections.extend(
+        section_name for section_name, _ in sidebar_config if "[ext]" in section_name
+    )
+    return ext_sections or {"Extensions"}
 
 
 def _render_template_placeholders(config):
@@ -60,9 +60,7 @@ def _render_template_placeholders(config):
         return datetime.datetime.now(datetime.UTC).year
 
     def _get_copyright_holder():
-        if "Omena0" in project_name(config):
-            return "Omena0"
-        return project_name(config)
+        return "Omena0" if "Omena0" in project_name(config) else project_name(config)
 
     def _get_version_selector_html():
         if not feature_enabled(config, "versioning"):
@@ -131,16 +129,14 @@ def absolutize_links(html_text, page_url, config):
             prefix != "/"
             and absolute.startswith("/")
             and absolute != prefix
-            and not absolute.startswith(prefix + "/")
+            and not absolute.startswith(f"{prefix}/")
         ):
             absolute = prefix + absolute
         if parts.query:
             absolute += f"?{parts.query}"
         if parts.fragment:
             absolute += f"#{parts.fragment}"
-        if quote:
-            return f"{attr}={quote}{absolute}{quote}"
-        return f"{attr}={absolute}"
+        return f"{attr}={quote}{absolute}{quote}" if quote else f"{attr}={absolute}"
 
     return URL_ATTR_RE.sub(_repl, html_text)
 
@@ -267,8 +263,8 @@ def build_page(slug, config, slug_page_keys):
     backlinks_html = ""
     related_html = ""
     search_index = config.get("_search_index", [])
-    if search_index:
-        page_data = next(
+    if search_index and (
+        page_data := next(
             (
                 p
                 for p in search_index
@@ -276,32 +272,28 @@ def build_page(slug, config, slug_page_keys):
             ),
             None,
         )
-        if page_data:
-            # Check for tags in original markdown
-            has_backlinks_tag = "<backlinks>" in body_md
-            has_related_tag = "<related>" in body_md
+    ):
+        # Check for tags in original markdown
+        has_backlinks_tag = "<backlinks>" in body_md
+        has_related_tag = "<related>" in body_md
 
-            if feature_enabled(config, "backlinks") and page_data.get("backlinks"):
-                backlinks_html = _render_backlinks(
-                    page_data["backlinks"], search_index, config
-                )
-                if has_backlinks_tag:
-                    # Replace both paragraph-wrapped and bare tag
-                    body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
-                    body_html = body_html.replace(
-                        "<p><backlinks></p>\n", backlinks_html
-                    )
-                    body_html = body_html.replace("<backlinks>", backlinks_html)
+        if feature_enabled(config, "backlinks") and page_data.get("backlinks"):
+            backlinks_html = _render_backlinks(
+                page_data["backlinks"], search_index, config
+            )
+            if has_backlinks_tag:
+                # Replace both paragraph-wrapped and bare tag
+                body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
+                body_html = body_html.replace("<p><backlinks></p>\n", backlinks_html)
+                body_html = body_html.replace("<backlinks>", backlinks_html)
 
-            if feature_enabled(config, "related") and page_data.get("related"):
-                related_html = _render_related(
-                    page_data["related"], search_index, config
-                )
-                if has_related_tag:
-                    # Replace both paragraph-wrapped and bare tag
-                    body_html = body_html.replace("<p><related></p>", related_html)
-                    body_html = body_html.replace("<p><related></p>\n", related_html)
-                    body_html = body_html.replace("<related>", related_html)
+        if feature_enabled(config, "related") and page_data.get("related"):
+            related_html = _render_related(page_data["related"], search_index, config)
+            if has_related_tag:
+                # Replace both paragraph-wrapped and bare tag
+                body_html = body_html.replace("<p><related></p>", related_html)
+                body_html = body_html.replace("<p><related></p>\n", related_html)
+                body_html = body_html.replace("<related>", related_html)
 
     subtitle_html = f'<p class="subtitle">{subtitle}</p>' if subtitle else ""
 
@@ -358,9 +350,8 @@ def _render_backlinks(backlinks, search_index, config):
         return ""
     items = []
     for bl_slug in backlinks:
-        page = next((p for p in search_index if p.get("slug") == bl_slug), None)
-        if page:
-            url = page.get("url", bl_slug + ".html")
+        if page := next((p for p in search_index if p.get("slug") == bl_slug), None):
+            url = page.get("url", f"{bl_slug}.html")
             title = page.get("title", bl_slug)
             items.append(f'<li><a href="{url}">{title}</a></li>')
     if not items:
@@ -380,9 +371,8 @@ def _render_related(related, search_index, config):
         return ""
     items = []
     for rel_slug in related:
-        page = next((p for p in search_index if p.get("slug") == rel_slug), None)
-        if page:
-            url = page.get("url", rel_slug + ".html")
+        if page := next((p for p in search_index if p.get("slug") == rel_slug), None):
+            url = page.get("url", f"{rel_slug}.html")
             title = page.get("title", rel_slug)
             items.append(f'<li><a href="{url}">{title}</a></li>')
     if not items:

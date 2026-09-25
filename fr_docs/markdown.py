@@ -120,16 +120,14 @@ def absolutize_links(html_text, page_url, site_prefix):
             prefix != "/"
             and absolute.startswith("/")
             and absolute != prefix
-            and not absolute.startswith(prefix + "/")
+            and not absolute.startswith(f"{prefix}/")
         ):
             absolute = prefix + absolute
         if parts.query:
             absolute += f"?{parts.query}"
         if parts.fragment:
             absolute += f"#{parts.fragment}"
-        if quote:
-            return f"{attr}={quote}{absolute}{quote}"
-        return f"{attr}={absolute}"
+        return f"{attr}={quote}{absolute}{quote}" if quote else f"{attr}={absolute}"
 
     return URL_ATTR_RE.sub(_repl, html_text)
 
@@ -210,7 +208,7 @@ def auto_link_markdown(md_text, search_map):
         esc = html.escape(content)
         for name in sorted(search_map.keys(), key=len, reverse=True):
             dest = search_map[name]
-            pattern = r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])"
+            pattern = f"(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])"
             esc = re.sub(pattern, f'<a href="{dest}">{name}</a>', esc)
 
         def _decor_replace(m):

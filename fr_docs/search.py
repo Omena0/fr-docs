@@ -234,18 +234,17 @@ def build_symbol_index(source_files, config):
 
         symbols = extract_symbols_from_content(content, language)
 
-        for symbol in symbols:
-            symbol_index.append(
-                {
-                    "file": file_path,
-                    "name": symbol["name"],
-                    "type": symbol["type"],
-                    "line": symbol["line"],
-                    "context": symbol["context"],
-                    "language": language,
-                }
-            )
-
+        symbol_index.extend(
+            {
+                "file": file_path,
+                "name": symbol["name"],
+                "type": symbol["type"],
+                "line": symbol["line"],
+                "context": symbol["context"],
+                "language": language,
+            }
+            for symbol in symbols
+        )
     return symbol_index
 
 
@@ -364,7 +363,7 @@ def _compute_backlinks_and_related(search_index, config):
 
     # First pass: collect all links from each page
     page_links = {}  # slug -> set of target slugs
-    for i, item in enumerate(search_index):
+    for item in search_index:
         src = os.path.join(config["_src_dir"], f"{item['source_slug']}.md")
         if os.path.exists(src):
             with open(src, "r", encoding="utf-8") as f:
@@ -374,15 +373,14 @@ def _compute_backlinks_and_related(search_index, config):
             # Resolve links to actual slugs
             resolved = set()
             for link in links:
-                resolved_slug = _resolve_link(
+                if resolved_slug := _resolve_link(
                     link,
                     item["source_slug"],
                     slug_to_source,
                     slug_to_idx,
                     config,
                     search_index,
-                )
-                if resolved_slug:
+                ):
                     resolved.add(resolved_slug)
             page_links[item["slug"]] = resolved
 
@@ -394,7 +392,7 @@ def _compute_backlinks_and_related(search_index, config):
 
     # Compute related pages (simple: pages that share links or are linked together)
     related = {item["slug"]: set() for item in search_index}
-    for i, item in enumerate(search_index):
+    for item in search_index:
         # Pages that link to the same targets
         source_links = page_links.get(item["slug"], set())
         for other_item in search_index:
