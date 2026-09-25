@@ -379,29 +379,33 @@ def add_internal_prefetch_links(html_text, config):
     if not config.get("production", False):
         return html_text
 
+    href_re = re.compile(
+        r'href\s*=\s*(?:"(?P<q1>[^"]*)"|\'(?P<q2>[^\']*)\'|(?P<uq>[^\s>]+))'
+    )
+
     def _repl(m):
+        tag = m.group(0)
         attrs = m.group("attrs")
-        href = m.group("href")
-        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
-            return m.group(0)
-        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", href):
-            return m.group(0)
-        # Only prefetch same-origin HTML pages (skip assets, anchors, etc.)
-        if not re.search(r"\.(?:html?|htm)$", href, re.IGNORECASE):
-            return m.group(0)
         # Skip links that already declare a rel attribute
         if re.search(r'\brel\s*=', attrs, re.IGNORECASE):
-            return m.group(0)
+            return tag
+        hm = href_re.search(attrs)
+        if not hm:
+            return tag
+        href = hm.group("q1") or hm.group("q2") or hm.group("uq") or ""
+        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            return tag
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", href):
+            return tag
+        # Only prefetch same-origin HTML pages (skip assets, anchors, etc.)
+        if not re.search(r"\.(?:html?|htm)$", href, re.IGNORECASE):
+            return tag
         return f'<a rel="prefetch" {attrs}'
 
-    # Match <a ...> tags, capturing everything between <a and >, plus the
-    # href value (quoted or unquoted). The minifier strips quotes around
-    # attribute values, so both forms must be supported.
-    return re.sub(
-        r'<a\s+(?P<attrs>[^>]*?href=(?:"(?P<href1>[^"]*)"|\'(?P<href2>[^\']*)\'|(?P<href3>[^\s>]+))[^>]*)>',
-        lambda m: _repl(m),
-        html_text,
-    )
+    # Match <a ...> tags. attrs captures everything between <a and > so
+    # trailing attributes after href are preserved. href is extracted
+    # separately (quoted or unquoted — the minifier strips quotes).
+    return re.sub(r'<a\s+(?P<attrs>[^>]*)>', _repl, html_text)
 
 
 logger = logging.getLogger(__name__)
