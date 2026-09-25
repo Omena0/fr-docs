@@ -82,16 +82,7 @@ def _render_template_placeholders(config):
       <div id="search-results" class="search-results"></div>"""
 
     def _get_search_preloads_html():
-        if not feature_enabled(config, "search"):
-            return ""
-        sp = output_href("", config)
-        return (
-            f'<link rel="preload" as="fetch" href="{sp}search_index.zst" crossorigin>\n'
-            f'    <link rel="preload" as="fetch" href="{sp}symbol_index.zst" crossorigin>\n'
-            f'    <link rel="preload" as="fetch" href="{sp}file_index.zst" crossorigin>\n'
-            f'    <link rel="preload" as="fetch" href="{sp}git_meta.zst" crossorigin>\n'
-            f'    <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/fzstd@0.1.1/umd/index.min.js">'
-        )
+        return ""
 
     return {
         "site_prefix": output_href("", config),
