@@ -62,10 +62,12 @@ def latest_versioned_commit_subject(event: str) -> str | None:
         text=True,
         check=True,
     )
-    return next((
+    return next(
+        (
             line.strip()
             for line in result.stdout.splitlines()
-            if CODE_RE.match(line.strip())),
+            if CODE_RE.match(line.strip())
+        ),
         None,
     )
 
