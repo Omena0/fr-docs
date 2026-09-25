@@ -63,7 +63,8 @@
         "link_preview": { "type": "boolean" },
         "code_highlighting": { "type": "boolean" },
         "blockquotes": { "type": "boolean" },
-        "ext_tags": { "type": "boolean" }
+        "ext_tags": { "type": "boolean" },
+        "inline_copy": { "type": "boolean" }
       },
       "additionalProperties": false
     }

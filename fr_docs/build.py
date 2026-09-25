@@ -12,6 +12,7 @@ import shutil
 import sys
 from pathlib import Path
 
+import xxhash
 import zstandard
 
 from .config import load_config
@@ -36,107 +37,187 @@ from .syntax import highlight_source_lines
 from .utils import normalized_site_prefix
 
 
+def _compute_hash(data: str) -> str:
+    """Compute xxhash hash of string data."""
+    return xxhash.xxh3_128_hexdigest(data.encode("utf-8"))
+
+
+class BuildCache:
+    """Manage caching of build data to avoid unnecessary regeneration."""
+
+    def __init__(self, cache_path: str):
+        self.cache_path = Path(cache_path)
+        self.cache = self._load_cache()
+
+    def _load_cache(self) -> dict:
+        """Load the build cache from disk."""
+        if not self.cache_path.exists():
+            return {}
+        try:
+            with open(self.cache_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError, OSError:
+            return {}
+
+    def _save_cache(self):
+        """Save the build cache to disk."""
+        with open(self.cache_path, "w", encoding="utf-8") as f:
+            json.dump(self.cache, f, separators=(",", ":"))
+
+    def needs_regeneration(self, key: str, current_hash: str) -> bool:
+        """Check if data needs regeneration based on hash."""
+        cached_hash = self.cache.get(key)
+        return True if cached_hash is None else cached_hash != current_hash
+
+    def update_cache(self, key: str, new_hash: str):
+        """Update cache with new hash."""
+        self.cache[key] = new_hash
+        self._save_cache()
+
+    def get_cached_path(self, filename: str, out_dir: str) -> Path:
+        """Get the path to cached .zst file."""
+        return Path(out_dir) / f"{filename}.zst"
+
+
 def _write_zstd_json(config, filename, value):
     raw = json.dumps(value, separators=(",", ":")).encode("utf-8")
+    raw_hash = _compute_hash(raw.decode("utf-8"))
+    cache = BuildCache(str(Path(config["_out_dir"]) / ".build_cache.json"))
+
+    if not cache.needs_regeneration(filename, raw_hash):
+        src = cache.get_cached_path(filename, config["_out_dir"])
+        if src.exists():
+            return len(raw), src.stat().st_size
+
     compressed = zstandard.ZstdCompressor(level=zstd_level(config)).compress(raw)
     path = Path(config["_out_dir"]) / filename
     path.write_bytes(compressed)
+    cache.update_cache(filename, raw_hash)
     return len(raw), len(compressed)
 
 
 def collect_source_files(config):
-    """Collect source code files for code reference feature."""
+    """Collect source code files for code reference feature using glob patterns."""
+    import glob as glob_module
+
     source_files = {}
     docs_path = Path(config["_docs_dir"])
     src_dir_path = Path(config["_src_dir"])
+    source_config = config.get("source_files", {})
 
-    # Look for source files in common locations
-    search_dirs = [
-        docs_path.parent,  # Project root (where fr_docs source is)
-        src_dir_path.parent,  # Parent of src dir
-        docs_path,  # Docs directory itself
-    ]
+    # Resolve search directories
+    search_dirs_raw = source_config.get("search_dirs", ["parent", "src_parent", "docs"])
+    search_dirs = []
+    for sd in search_dirs_raw:
+        if sd == "parent":
+            search_dirs.append(docs_path.parent)
+        elif sd == "src_parent":
+            search_dirs.append(src_dir_path.parent)
+        elif sd == "docs":
+            search_dirs.append(docs_path)
+        elif Path(sd).exists():
+            search_dirs.append(Path(sd))
 
-    extensions = {
-        ".py",
-        ".js",
-        ".ts",
-        ".tsx",
-        ".jsx",
-        ".java",
-        ".cpp",
-        ".c",
-        ".h",
-        ".hpp",
-        ".rs",
-        ".go",
-        ".rb",
-        ".php",
-        ".cs",
-        ".kt",
-        ".swift",
-        ".scala",
-        ".clj",
-        ".hs",
-        ".ml",
-        ".fs",
-        ".vim",
-        ".sh",
-        ".bash",
-        ".zsh",
-        ".fish",
-        ".ps1",
-        ".bat",
-        ".cmd",
-        ".sql",
-        ".html",
-        ".htm",
-        ".xml",
-        ".json",
-        ".yaml",
-        ".yml",
-        ".toml",
-        ".ini",
-        ".cfg",
-        ".conf",
-        ".md",
-        ".txt",
-        ".rst",
-        ".css",
-        ".scss",
-        ".sass",
-        ".less",
-        ".styl",
-        ".vue",
-        ".svelte",
-        ".astro",
-        ".mdx",
-    }
+    # Get glob patterns from config
+    patterns = source_config.get(
+        "patterns",
+        [
+            "**/*.py",
+            "**/*.js",
+            "**/*.ts",
+            "**/*.tsx",
+            "**/*.jsx",
+            "**/*.java",
+            "**/*.cpp",
+            "**/*.c",
+            "**/*.h",
+            "**/*.hpp",
+            "**/*.rs",
+            "**/*.go",
+            "**/*.rb",
+            "**/*.php",
+            "**/*.cs",
+            "**/*.kt",
+            "**/*.swift",
+            "**/*.scala",
+            "**/*.clj",
+            "**/*.hs",
+            "**/*.ml",
+            "**/*.fs",
+            "**/*.vim",
+            "**/*.sh",
+            "**/*.bash",
+            "**/*.zsh",
+            "**/*.fish",
+            "**/*.ps1",
+            "**/*.bat",
+            "**/*.cmd",
+            "**/*.sql",
+            "**/*.html",
+            "**/*.htm",
+            "**/*.xml",
+            "**/*.json",
+            "**/*.yaml",
+            "**/*.yml",
+            "**/*.toml",
+            "**/*.ini",
+            "**/*.cfg",
+            "**/*.conf",
+            "**/*.md",
+            "**/*.txt",
+            "**/*.rst",
+            "**/*.css",
+            "**/*.scss",
+            "**/*.sass",
+            "**/*.less",
+            "**/*.styl",
+            "**/*.vue",
+            "**/*.svelte",
+            "**/*.astro",
+            "**/*.mdx",
+        ],
+    )
 
-    ignore_dirs = {
-        "__pycache__",
-        "node_modules",
-        "venv",
-        "env",
-        ".git",
-        "dist",
-        "build",
-        "target",
-        "out",
-        "site",
-    }
+    # Get ignore dirs from config
+    ignore_dirs = set(
+        source_config.get(
+            "ignore_dirs",
+            [
+                "__pycache__",
+                "node_modules",
+                "venv",
+                "env",
+                ".git",
+                "dist",
+                "build",
+                "target",
+                "out",
+                "site",
+            ],
+        )
+    )
 
+    seen_paths = set()
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
         try:
-            for file_path in search_dir.rglob("*"):
-                if file_path.is_file() and file_path.suffix in extensions:
-                    # Get relative path from search_dir for filtering
+            for pattern in patterns:
+                # Use glob with the search directory as base
+                for match in glob_module.glob(
+                    str(search_dir / pattern), recursive=True
+                ):
+                    file_path = Path(match)
+                    if not file_path.is_file():
+                        continue
+
+                    # Get relative path from search_dir for key
                     try:
                         rel_path = file_path.relative_to(search_dir)
                     except ValueError:
                         continue
+
+                    rel_str = str(rel_path)
 
                     # Skip hidden directories in the relative path
                     rel_parts = rel_path.parts
@@ -145,9 +226,14 @@ def collect_source_files(config):
                     if any(p in ignore_dirs for p in rel_parts):
                         continue
 
+                    # Deduplicate by relative path string
+                    if rel_str in seen_paths:
+                        continue
+                    seen_paths.add(rel_str)
+
                     try:
                         content = file_path.read_text(encoding="utf-8")
-                        source_files[str(rel_path)] = content
+                        source_files[rel_str] = content
                     except OSError, UnicodeDecodeError:
                         pass
         except OSError:
@@ -282,17 +368,53 @@ def main(argv=None):
             f"({raw_size:,} bytes → {compressed_size:,} zstd)"
         )
 
-        source_highlights = {
-            path: highlight_source_lines(content, path)
-            for path, content in config["_source_files"].items()
-        }
-        raw_size, compressed_size = _write_zstd_json(
-            config, "source_highlights.zst", source_highlights
-        )
-        print(
-            f"   Source highlights: {len(source_highlights)} files saved "
-            f"({raw_size:,} bytes → {compressed_size:,} zstd)"
-        )
+        # Generate source highlights with per-file caching
+        cache = BuildCache(str(Path(config["_out_dir"]) / ".build_cache.json"))
+        highlights_cache_dir = Path(config["_out_dir"]) / ".highlight_cache"
+        highlights_cache_dir.mkdir(parents=True, exist_ok=True)
+        source_highlights = {}
+
+        for path, content in config["_source_files"].items():
+            content_hash = _compute_hash(content)
+            cache_key = f"highlight_{path.replace('/', '__').replace(chr(92), '__')}"
+            highlight_cache_file = highlights_cache_dir / f"{cache_key}.zst"
+
+            if (
+                cache.needs_regeneration(cache_key, content_hash)
+                or not highlight_cache_file.exists()
+            ):
+                # Need to recompute highlights
+                highlighted_lines = highlight_source_lines(content, path)
+                source_highlights[path] = highlighted_lines
+
+                # Save to per-file cache
+                raw = json.dumps(highlighted_lines, separators=(",", ":")).encode(
+                    "utf-8"
+                )
+                compressed = zstandard.ZstdCompressor(
+                    level=zstd_level(config)
+                ).compress(raw)
+                highlight_cache_file.parent.mkdir(parents=True, exist_ok=True)
+                highlight_cache_file.write_bytes(compressed)
+                cache.update_cache(cache_key, content_hash)
+            else:
+                # Load from per-file cache
+                with open(highlight_cache_file, "rb") as f:
+                    compressed = f.read()
+                decompressed = zstandard.ZstdDecompressor().decompress(compressed)
+                source_highlights[path] = json.loads(decompressed.decode("utf-8"))
+
+        # Write the highlights to zstd
+        if source_highlights:
+            raw_size, compressed_size = _write_zstd_json(
+                config, "source_highlights.zst", source_highlights
+            )
+            print(
+                f"   Source highlights: {len(source_highlights)} files saved "
+                f"({raw_size:,} bytes → {compressed_size:,} zstd)"
+            )
+        else:
+            print("   Source highlights: 0 files saved (0 bytes → 0 zstd)")
 
     if search_includes["files"] and config.get("_source_files"):
         file_index = [

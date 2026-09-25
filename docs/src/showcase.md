@@ -176,15 +176,17 @@ Hover over any code block above to see the copy button in the top-right corner.
 Search can include pages, page titles, headings, content, symbols, and source filenames. Configure these under `features.search.include`:
 
 ```json
-"search": {
-  "enabled": true,
-  "include": {
-    "pages": true,
-    "titles": true,
-    "headings": true,
-    "content": true,
-    "symbols": true,
-    "files": true
+{
+  "search": {
+    "enabled": true,
+    "include": {
+      "pages": true,
+      "titles": true,
+      "headings": true,
+      "content": true,
+      "symbols": true,
+      "files": true
+    }
   }
 }
 ```

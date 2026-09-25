@@ -26,6 +26,14 @@
     "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
     "live_label": "Live"
   },
+  "source_files": {
+    "patterns": [
+      "fr_docs/*.py",
+      "docs/src/*.md",
+      "docs/*.js",
+      "docs/*.css"
+    ]
+  },
   "features": {
     "backlinks": true,
     "related": true,

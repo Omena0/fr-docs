@@ -408,6 +408,7 @@ code {
 /* Inline copy command links */
 a.copy-inline-command {
   text-decoration: underline;
+  text-decoration-style: dotted;
   text-underline-offset: 2px;
   text-decoration-color: var(--primary);
   color: var(--inline-code-text);

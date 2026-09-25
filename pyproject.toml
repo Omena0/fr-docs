@@ -11,6 +11,7 @@ license = {file="LICENSE.md"}
 dependencies = [
     "fastpylight>=0.1.18",
     "markdown",
+    "xxhash>=4.0.1",
     "zstandard",
 ]
 
