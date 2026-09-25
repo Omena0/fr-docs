@@ -47,7 +47,20 @@ runs:
         cache-dependency-path: ${{ inputs.lockfile-path }}
     - name: Install Node.js tools
       shell: bash
-      run: npm install --no-audit --no-fund --no-save ${{ inputs.node-tools }}
+      env:
+        NODE_TOOLS: ${{ inputs.node-tools }}
+      run: |
+        set -euo pipefail
+        read -r -a tools <<< "$NODE_TOOLS"
+
+        for tool in "${tools[@]}"; do
+          if [[ ! "$tool" =~ ^[A-Za-z0-9@._/\-]+$ ]]; then
+            echo "Invalid package specifier: $tool" >&2
+            exit 1
+          fi
+        done
+
+        npm install --no-audit --no-fund --no-save "${tools[@]}"
     - name: Install fr-docs
       shell: bash
       run: pip install -e .
