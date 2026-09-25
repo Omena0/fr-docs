@@ -380,6 +380,9 @@ def optimize_all_pages(config):
 
         # Run critical per-file with the static engine (the only engine
         # that resolves relative stylesheet URLs from a single file).
+        # Use --dimensions to render for both mobile (390x844, Moto G
+        # Power) and desktop (1920x1080) so the inlined critical CSS
+        # includes the @media(width<=640px) rules that mobile needs.
         for html_file in out_dir.glob("*.html"):
             cmd = [
                 "npx",
@@ -388,6 +391,8 @@ def optimize_all_pages(config):
                 "--inline",
                 "--engine",
                 "static",
+                "--dimensions",
+                "390x844,1920x1080",
                 "--width",
                 "1920",
                 "--height",
