@@ -1247,7 +1247,7 @@ h1 .ext-tag {
 }
 
 .code-reference-panel .code-line {
-  display: flex;
+  display: block;
   padding: 0 16px;
   min-height: 1.6em;
   white-space: pre;
@@ -1267,6 +1267,7 @@ h1 .ext-tag {
   user-select: none;
   flex-shrink: 0;
   opacity: 0.6;
+  vertical-align: top;
 }
 
 .code-reference-panel .code-line.highlight-target .line-number {
@@ -1327,7 +1328,7 @@ h1 .ext-tag {
 }
 
 .link-preview-tooltip .code-line {
-  display: flex;
+  display: block;
   padding: 1px 8px;
   white-space: pre;
 }
@@ -1347,6 +1348,7 @@ h1 .ext-tag {
   flex-shrink: 0;
   opacity: 0.6;
   font-size: 0.7rem;
+  vertical-align: top;
 }
 
 .link-preview-tooltip .code-line.highlight-target .line-number {
