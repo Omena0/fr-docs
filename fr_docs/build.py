@@ -394,7 +394,7 @@ def main(argv=None):
         "symbol_index.json",
     ):
         Path(config["_out_dir"], legacy_name).unlink(missing_ok=True)
-    for name in ("favicon.svg", "script.js", "style.css"):
+    for name in ("favicon.svg", "fonts.css", "script.js", "style.css"):
         src = docs_path / name
         dst = Path(config["_out_dir"]) / name
 
@@ -407,6 +407,18 @@ def main(argv=None):
             print(f"File not found: {os.getcwd()}, {src}->{dst}")
         except OSError as e:
             print(f"OSError: {e}")
+
+    # Copy locally-fetched fonts (if present) so the site doesn't need
+    # to reach out to fonts.gstatic.com. fonts.css is minified along
+    # with style.css below.
+    fonts_dir = docs_path / "fonts"
+    if fonts_dir.is_dir():
+        out_fonts = Path(config["_out_dir"]) / "fonts"
+        out_fonts.mkdir(parents=True, exist_ok=True)
+        for f in fonts_dir.iterdir():
+            if f.is_file():
+                shutil.copy2(f, out_fonts / f.name)
+        print(f"   Copied {len(list(out_fonts.iterdir()))} font files")
 
     slugs = get_all_slugs(config)
 

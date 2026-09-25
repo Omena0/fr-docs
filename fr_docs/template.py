@@ -18,9 +18,7 @@ TEMPLATE = """\
   <meta name="theme-color" content="#6366f1">
   <meta name="color-scheme" content="dark">
   <link rel="icon" href="{site_prefix}favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{site_prefix}fonts.css">
   <link rel="stylesheet" href="{site_prefix}style.css">
 </head>
 <body>
