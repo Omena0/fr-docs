@@ -114,7 +114,7 @@ def main() -> int:
   font-style: {style};
   font-weight: {weight};
   font-display: {display};
-  src: url('{fname}') format('{fmt}');
+  src: url('fonts/{fname}') format('{fmt}');
 }}"""
         )
 
