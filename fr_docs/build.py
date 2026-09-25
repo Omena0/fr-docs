@@ -30,7 +30,7 @@ from .config_accessors import (
     zstd_level,
 )
 from .git import build_version_options, collect_git_metadata
-from .html_pipeline import build_page
+from .html_pipeline import build_page, minify_all_pages, optimize_all_pages
 from .search import build_search_index, search_include_config
 from .slug import (
     build_slug_page_keys,
@@ -588,6 +588,22 @@ def main(argv=None):
                     print(f"  ✗ {slug_output_name(slug, config)} (error: {e})")
     else:
         print("No pages found to build.")
+
+    if config.get("production", False):
+        print()
+        print("🔧 Optimizing HTML (critical CSS inlining)...")
+        try:
+            optimize_all_pages(config)
+            print("   ✓ Critical CSS inlined")
+        except Exception as e:  # noqa: BLE001
+            print(f"   ✗ Critical failed: {e}")
+
+        print("🔧 Minifying HTML...")
+        try:
+            minify_all_pages(config)
+            print("   ✓ HTML minified")
+        except Exception as e:  # noqa: BLE001
+            print(f"   ✗ Minification failed: {e}")
 
     print(f"\n✅ Built {built} pages")
 

@@ -149,44 +149,13 @@ def absolutize_links(html_text, page_url, config):
 
 
 def optimize_html(html_input, config):
-    if not config.get("production", False):
-        return html_input
-    if not cfg_optimize_html(config):
-        return html_input
+    """Legacy single-file optimizer — kept for backwards compat.
 
-    with tempfile.NamedTemporaryFile("w+", suffix=".html", delete=False) as f_in:
-        f_in.write(html_input)
-        in_path = Path(f_in.name)
-
-    cmd = [
-        "npx",
-        "critical",
-        str(in_path),
-        "--inline",
-        "--width",
-        "1920",
-        "--height",
-        "1080",
-    ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-
-    try:
-        if result.returncode != 0:
-            raise RuntimeError(f"Critical failed:\n{result.stderr}")
-
-        optimized_html = result.stdout
-
-        if "</html>" not in optimized_html:
-            raise RuntimeError("Critical output looks truncated/corrupted")
-
-        return optimized_html
-
-    finally:
-        try:
-            in_path.unlink()
-        except OSError:
-            pass
+    critical only resolves <link rel=stylesheet> URLs when run on a
+    directory, so this is a no-op in production. Use optimize_all_pages
+    instead.
+    """
+    return html_input
 
 
 def minify_html(html_input, config):
@@ -344,16 +313,6 @@ def build_page(slug, config, slug_page_keys):
 
     out_html = TEMPLATE.format(**placeholders)
 
-    try:
-        out_html = optimize_html(out_html, config)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to optimize HTML: {e}")
-
-    try:
-        out_html = minify_html(out_html, config)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"Failed to minify HTML: {e}")
-
     if config.get("production", False):
         page_url = (
             f"https://docs.local{output_href(slug_output_name(slug, config), config)}"
@@ -365,6 +324,132 @@ def build_page(slug, config, slug_page_keys):
     out_path = os.path.join(config["_out_dir"], out_name)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(out_html)
+
+
+def optimize_all_pages(config):
+    """Inline critical-path CSS into every production HTML page.
+
+    critical only resolves <link rel=stylesheet> URLs when run on a
+    single HTML file with the static engine (directory mode reports
+    "no stylesheets discovered" regardless of engine). Running it on a
+    single temp file reports "no stylesheets discovered" and silently
+    passes through — which on a slow 4G connection means FCP is gated
+    by the full CSS download (~4s for 7.6KB at 1.6Mbps).
+
+    Must be called once after all pages are written, not from within
+    build_page (which runs in a thread pool).
+    """
+    if not config.get("production", False):
+        return
+    if not cfg_optimize_html(config):
+        return
+
+    out_dir = Path(config["_out_dir"]).resolve()
+    if not out_dir.is_dir():
+        return
+
+    # critical only follows relative stylesheet URLs from each HTML
+    # file's location. The production template uses absolute paths
+    # (e.g. href=/fr-docs/style.css), so rewrite them to relative
+    # paths first, run critical, then restore the absolute paths in
+    # the inlined output.
+    site_prefix = normalized_site_prefix(config)
+    stripped_prefix = site_prefix.rstrip("/") if site_prefix and site_prefix != "/" else None
+    backed_up = []
+
+    try:
+        if stripped_prefix:
+            # Match both quoted (href="/fr-docs/style.css") and unquoted
+            # (href=/fr-docs/style.css) forms. The minifier strips quotes,
+            # so both must be supported.
+            prefix_pat = re.compile(
+                rf'href=(["\']?){re.escape(stripped_prefix)}/([^"\'\s>]+)\1'
+            )
+            for html_file in out_dir.glob("*.html"):
+                raw = html_file.read_text(encoding="utf-8")
+                backup = out_dir / f".critical_orig_{html_file.stem}.html"
+                backup.write_text(raw, encoding="utf-8")
+                backed_up.append(backup)
+                # Strip the site prefix so href=/fr-docs/style.css
+                # becomes href=style.css (relative to the HTML file).
+                rewritten = prefix_pat.sub(
+                    lambda m: f'href={m.group(1)}{m.group(2)}{m.group(1)}',
+                    raw,
+                )
+                html_file.write_text(rewritten, encoding="utf-8")
+
+        # Run critical per-file with the static engine (the only engine
+        # that resolves relative stylesheet URLs from a single file).
+        for html_file in out_dir.glob("*.html"):
+            cmd = [
+                "npx",
+                "critical",
+                str(html_file),
+                "--inline",
+                "--engine",
+                "static",
+                "--width",
+                "1920",
+                "--height",
+                "1080",
+            ]
+
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False, cwd=str(out_dir)
+            )
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Critical failed for {html_file.name}:\n{result.stderr}"
+                )
+
+            optimized = result.stdout
+            if "</html>" not in optimized:
+                raise RuntimeError(
+                    f"Critical output for {html_file.name} looks truncated"
+                )
+
+            html_file.write_text(optimized, encoding="utf-8")
+
+    finally:
+        # Restore the original absolute-path HTML for any page critical
+        # didn't inline (e.g. it failed or skipped).
+        for backup in backed_up:
+            target = out_dir / f"{backup.stem.replace('.critical_orig_', '')}.html"
+            if target.exists() and backup.exists():
+                try:
+                    target_content = target.read_text(encoding="utf-8")
+                    # Only restore if critical didn't inline CSS
+                    if "data-critical" not in target_content:
+                        target.write_text(
+                            backup.read_text(encoding="utf-8"),
+                            encoding="utf-8",
+                        )
+                except OSError:
+                    pass
+            try:
+                backup.unlink()
+            except OSError:
+                pass
+
+
+def minify_all_pages(config):
+    """Minify every production HTML page after critical has inlined CSS."""
+    if not config.get("production", False):
+        return
+    if not cfg_minify_html(config):
+        return
+
+    out_dir = Path(config["_out_dir"]).resolve()
+    if not out_dir.is_dir():
+        return
+
+    for html_file in sorted(out_dir.glob("*.html")):
+        try:
+            raw = html_file.read_text(encoding="utf-8")
+            minified = minify_html(raw, config)
+            html_file.write_text(minified, encoding="utf-8")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Failed to minify {html_file.name}: {e}")
 
 
 def add_internal_prefetch_links(html_text, config):
