@@ -22,17 +22,18 @@
     "search_index_filename": "search_index.zst",
     "git_meta_filename": "git_meta.zst"
   },
-  "versioning": {
-    "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
-    "live_label": "Live"
-  },
   "source_files": {
+    "search_dirs": ["parent", "src_parent", "docs"],
     "patterns": [
-      "fr_docs/*.py",
       "docs/src/*.md",
       "docs/*.js",
       "docs/*.css"
-    ]
+    ],
+    "ignore_dirs": []
+  },
+  "versioning": {
+    "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
+    "live_label": "Live"
   },
   "features": {
     "backlinks": true,

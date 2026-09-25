@@ -13,6 +13,15 @@
     "out_dir": { "type": "string" },
     "site_path_prefix": { "type": "string" },
     "sidebar": { "type": "array" },
+    "source_files": {
+      "type": "object",
+      "properties": {
+        "search_dirs": { "type": "array", "items": { "type": "string" } },
+        "patterns": { "type": "array", "items": { "type": "string" } },
+        "ignore_dirs": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
     "build": {
       "type": "object",
       "properties": {

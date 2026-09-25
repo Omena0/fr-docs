@@ -40,6 +40,15 @@ DEFAULT_CONFIG = {
         "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
         "live_label": "Live",
     },
+    "source_files": {
+        "search_dirs": ["parent", "src_parent", "docs"],
+        "patterns": [
+            "docs/src/*.md",
+            "docs/*.js",
+            "docs/*.css"
+        ],
+        "ignore_dirs": []
+    },
     "features": {
         "backlinks": True,
         "related": True,
@@ -51,6 +60,7 @@ DEFAULT_CONFIG = {
         "code_highlighting": True,
         "blockquotes": True,
         "ext_tags": True,
+        "inline_copy": True
     },
 }
 
@@ -166,7 +176,16 @@ Create a `config.json` in your docs directory:
       ["index", "Home"],
       ["installation", "Installation"]
     ]]
-  ]
+  ],
+  "source_files": {
+    "search_dirs": ["parent", "src_parent", "docs"],
+    "patterns": [
+      "docs/src/*.md",
+      "docs/*.js",
+      "docs/*.css"
+    ],
+    "ignore_dirs": []
+  }
 }
 ```
 
@@ -181,6 +200,8 @@ Create a `config.json` in your docs directory:
 | `out_dir` | string | "site" | Output HTML directory |
 | `docs_dir` | string | "." | Docs root directory |
 | `sidebar` | array | [] | Navigation structure |
+| `source_files.patterns` | array | ["docs/src/*.md", "docs/*.js", "docs/*.css"] | Glob patterns for source files (see note below) |
+| `source_files.ignore_dirs` | array | [] | Directory names to skip |
 
 ## Build Options
 
@@ -226,6 +247,16 @@ Create a `config.json` in your docs directory:
   }
 }
 ```
+
+## Source Files
+
+The `source_files` configuration controls which files are indexed for code references and search:
+
+- `patterns`: Glob patterns (relative to each search directory). Use `*` for any filename, `**` for recursive.
+- `search_dirs`: Where to search. Options: `"parent"` (project root), `"src_parent"`, `"docs"`.
+- `ignore_dirs`: Directory names to skip during search.
+
+Add your own patterns to `patterns` to include additional file types or directories.
 """
 
 SCRIPT_JS_URL = (
