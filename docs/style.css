@@ -231,7 +231,14 @@ html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px)
   padding: 16px 0;
   z-index: 900;
   transition: transform .25s ease;
+  /* Hidden off-screen by default on all viewports so the critical-CSS
+   * inline pass (which renders at desktop width) doesn't leave the
+   * sidebar visible on mobile and trigger a layout shift when the
+   * responsive media query finally applies. */
+  transform: translateX(-100%);
+  will-change: transform;
 }
+.sidebar.open { transform: translateX(0); }
 .sidebar::-webkit-scrollbar { width: 4px; }
 .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 4px; }
 
