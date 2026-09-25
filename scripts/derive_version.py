@@ -42,22 +42,32 @@ def letter_to_minor(letter: str) -> int:
     return ord(letter.lower()) - ord("a") + 1
 
 
-def latest_versioned_commit_subject() -> str | None:
+def latest_versioned_commit_subject(event: str) -> str | None:
     """Most recent commit whose subject starts with a version code.
 
-    Walks back from HEAD until a commit like ``2A - ...`` is found, so a
-    non-versioned follow-up commit still triggers a publish.
+    On ``push`` only the HEAD commit is inspected, so a release is published
+    solely when the pushed commit itself starts with a version prefix (a
+    non-versioned follow-up commit no longer triggers a publish). On
+    ``workflow_dispatch`` (manual) history is walked back so the last version
+    code can be bumped into a fresh patch release.
     """
+    args = (
+        ["git", "log", "-1", "--pretty=%s"]
+        if event == "push"
+        else ["git", "log", "--pretty=%s"]
+    )
     result = subprocess.run(
-        ["git", "log", "--pretty=%s"],
+        args,
         capture_output=True,
         text=True,
         check=True,
     )
-    for line in result.stdout.splitlines():
-        if CODE_RE.match(line.strip()):
-            return line.strip()
-    return None
+    return next((
+            line.strip()
+            for line in result.stdout.splitlines()
+            if CODE_RE.match(line.strip())),
+        None,
+    )
 
 
 def published_patches(major: str, minor: str) -> set[int]:
@@ -91,7 +101,7 @@ def next_patch(major: str, minor: str, base: int) -> int:
 def main() -> int:
     event = sys.argv[1] if len(sys.argv) > 1 else ""
 
-    subject = latest_versioned_commit_subject()
+    subject = latest_versioned_commit_subject(event)
     if subject is None:
         if event == "workflow_dispatch":
             # No version code anywhere in history: start at 0.1.0

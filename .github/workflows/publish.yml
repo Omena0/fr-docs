@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, ' - ')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
