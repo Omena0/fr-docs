@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const clean = String(path || '').replace(/^\/+/, '');
     if (!SITE_PREFIX) return clean;
+    const prefix = SITE_PREFIX.replace(/^\/+|\/+$/g, '');
+    if (clean === prefix || clean.startsWith(`${prefix}/`)) return `/${clean}`;
     return SITE_PREFIX + clean;
   }
 
@@ -1325,7 +1327,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function preloadPageOnHover(href) {
     if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-    const key = new URL(href, location.href).href;
+    const key = new URL(toSiteHref(href), location.origin).href;
     if (pagePreloadCache.has(key)) return;
     pagePreloadCache.add(key);
     const link = document.createElement('link');
