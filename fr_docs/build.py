@@ -31,6 +31,7 @@ from .config_accessors import (
 )
 from .git import build_version_options, collect_git_metadata
 from .html_pipeline import build_page, minify_all_pages, optimize_all_pages
+from .utils import normalized_site_prefix
 from .search import build_search_index, search_include_config
 from .slug import (
     build_slug_page_keys,
@@ -185,7 +186,9 @@ def _write_zstd_json(config, filename, value):
         if src.exists():
             return len(raw), src.stat().st_size
 
-    compressed = zstandard.ZstdCompressor(level=_best_zstd_level(raw, zstd_level(config))).compress(raw)
+    compressed = zstandard.ZstdCompressor(
+        level=_best_zstd_level(raw, zstd_level(config))
+    ).compress(raw)
     path = Path(config["_out_dir"]) / filename
     path.write_bytes(compressed)
     cache.update_cache(filename, raw_hash)
@@ -445,7 +448,9 @@ def main(argv=None):
     # Compress search index
     search_json = json.dumps(search_index, separators=(",", ":"))
     search_raw = search_json.encode("utf-8")
-    cctx = zstandard.ZstdCompressor(level=_best_zstd_level(search_raw, zstd_level(config)))
+    cctx = zstandard.ZstdCompressor(
+        level=_best_zstd_level(search_raw, zstd_level(config))
+    )
     compressed = cctx.compress(search_raw)
     search_index_path = os.path.join(config["_out_dir"], search_index_filename(config))
     os.makedirs(os.path.dirname(search_index_path), exist_ok=True)
@@ -604,6 +609,24 @@ def main(argv=None):
             print("   ✓ HTML minified")
         except Exception as e:  # noqa: BLE001
             print(f"   ✗ Minification failed: {e}")
+
+        # Create a {site_prefix}/ directory under site/ and symlink every
+        # file into it, so a production build works locally (the HTML
+        # references absolute paths like /fr-docs/style.css). Without
+        # this, running `python -m fr_docs build --production` and then
+        # opening site/index.html in a browser would 404 on every asset.
+        prefix = normalized_site_prefix(config).strip("/") or "fr-docs"
+        prefix_dir = Path(config["_out_dir"]) / prefix
+        try:
+            if prefix_dir.is_symlink() or prefix_dir.exists():
+                shutil.rmtree(prefix_dir, ignore_errors=True)
+            prefix_dir.mkdir(parents=True, exist_ok=True)
+            for f in sorted(Path(config["_out_dir"]).iterdir()):
+                if f.is_file() and not f.name.startswith("."):
+                    (prefix_dir / f.name).symlink_to(f.resolve())
+            print(f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/")
+        except OSError as e:
+            print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
 
     print(f"\n✅ Built {built} pages")
 
