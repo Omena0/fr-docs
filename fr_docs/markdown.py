@@ -163,19 +163,28 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
     escaped_filenames = [re.escape(fn) for fn in sorted_filenames]
     filename_pattern = "|".join(escaped_filenames)
 
-    # First, protect <pre><code> blocks from processing
+    # First, protect <pre><code> blocks and copy-inline-command links from processing
     pre_code_pattern = re.compile(
         r"(<pre><code[^>]*>.*?</code></pre>)", flags=re.DOTALL
     )
+    copy_cmd_pattern = re.compile(
+        r'(<a\s+class="copy-inline-command"[^>]*>.*?</a>)', flags=re.DOTALL
+    )
     pre_code_blocks = []
+    copy_cmd_blocks = []
 
     def _protect_pre_code(m):
         pre_code_blocks.append(m.group(1))
         return f"@@PRECODE{len(pre_code_blocks) - 1}@@"
 
-    protected_text = pre_code_pattern.sub(_protect_pre_code, html_text)
+    def _protect_copy_cmd(m):
+        copy_cmd_blocks.append(m.group(1))
+        return f"@@COPYCMD{len(copy_cmd_blocks) - 1}@@"
 
-    # Now process inline <code> tags (but not <pre><code>)
+    protected_text = pre_code_pattern.sub(_protect_pre_code, html_text)
+    protected_text = copy_cmd_pattern.sub(_protect_copy_cmd, protected_text)
+
+    # Now process inline <code> tags (but not <pre><code> and not copy-inline-command links)
     code_pattern = re.compile(r"(<code[^>]*>)(.*?)(</code>)", flags=re.DOTALL)
 
     def _process_code_block(m):
@@ -201,7 +210,14 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
     def _restore_pre_code(m):
         return pre_code_blocks[int(m.group(1))]
 
-    return re.sub(r"@@PRECODE(\d+)@@", _restore_pre_code, processed_text)
+    # Restore copy-inline-command links
+    def _restore_copy_cmd(m):
+        return copy_cmd_blocks[int(m.group(1))]
+
+    processed_text = re.sub(r"@@PRECODE(\d+)@@", _restore_pre_code, processed_text)
+    processed_text = re.sub(r"@@COPYCMD(\d+)@@", _restore_copy_cmd, processed_text)
+
+    return processed_text
 
 
 def strip_code_refs_outside_code_blocks(html_text):
