@@ -31,7 +31,6 @@ from .config_accessors import (
 )
 from .git import build_version_options, collect_git_metadata
 from .html_pipeline import build_page, minify_all_pages, optimize_all_pages
-from .utils import normalized_site_prefix
 from .search import build_search_index, search_include_config
 from .slug import (
     build_slug_page_keys,
@@ -359,6 +358,14 @@ def main(argv=None):
         help="Rewrite internal links to site-root absolute paths for deployed docs.",
     )
     parser.add_argument(
+        "--symlink",
+        action="store_true",
+        help="Create a {site_prefix}/ symlink dir under site/ so a local "
+        "production build can be opened in a browser. Off by default: in "
+        "CI the whole docs/site/ tree is deployed as-is, and a nested "
+        "fr-docs/ symlink folder would show up as omena0.dev/fr-docs/fr-docs/.",
+    )
+    parser.add_argument(
         "--config",
         help="Path to the configuration JSON file.",
     )
@@ -610,23 +617,28 @@ def main(argv=None):
         except Exception as e:  # noqa: BLE001
             print(f"   ✗ Minification failed: {e}")
 
-        # Create a {site_prefix}/ directory under site/ and symlink every
+# Create a {site_prefix}/ directory under site/ and symlink every
         # file into it, so a production build works locally (the HTML
         # references absolute paths like /fr-docs/style.css). Without
         # this, running `python -m fr_docs build --production` and then
         # opening site/index.html in a browser would 404 on every asset.
-        prefix = normalized_site_prefix(config).strip("/") or "fr-docs"
-        prefix_dir = Path(config["_out_dir"]) / prefix
-        try:
-            if prefix_dir.is_symlink() or prefix_dir.exists():
-                shutil.rmtree(prefix_dir, ignore_errors=True)
-            prefix_dir.mkdir(parents=True, exist_ok=True)
-            for f in sorted(Path(config["_out_dir"]).iterdir()):
-                if f.is_file() and not f.name.startswith("."):
-                    (prefix_dir / f.name).symlink_to(f.resolve())
-            print(f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/")
-        except OSError as e:
-            print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
+        #
+        # Off by default: in CI the whole docs/site/ tree is deployed
+        # as-is, and a nested fr-docs/ symlink folder would show up as
+        # omena0.dev/fr-docs/fr-docs/. Pass --symlink to enable it.
+        if args.symlink:
+            prefix = normalized_site_prefix(config).strip("/") or "fr-docs"
+            prefix_dir = Path(config["_out_dir"]) / prefix
+            try:
+                if prefix_dir.is_symlink() or prefix_dir.exists():
+                    shutil.rmtree(prefix_dir, ignore_errors=True)
+                prefix_dir.mkdir(parents=True, exist_ok=True)
+                for f in sorted(Path(config["_out_dir"]).iterdir()):
+                    if f.is_file() and not f.name.startswith("."):
+                        (prefix_dir / f.name).symlink_to(f.resolve())
+                print(f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/")
+            except OSError as e:
+                print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
 
     print(f"\n✅ Built {built} pages")
 
