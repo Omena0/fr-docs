@@ -617,7 +617,7 @@ def main(argv=None):
         except Exception as e:  # noqa: BLE001
             print(f"   ✗ Minification failed: {e}")
 
-# Create a {site_prefix}/ directory under site/ and symlink every
+        # Create a {site_prefix}/ directory under site/ and symlink every
         # file into it, so a production build works locally (the HTML
         # references absolute paths like /fr-docs/style.css). Without
         # this, running `python -m fr_docs build --production` and then
@@ -636,7 +636,9 @@ def main(argv=None):
                 for f in sorted(Path(config["_out_dir"]).iterdir()):
                     if f.is_file() and not f.name.startswith("."):
                         (prefix_dir / f.name).symlink_to(f.resolve())
-                print(f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/")
+                print(
+                    f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/"
+                )
             except OSError as e:
                 print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
 

@@ -354,7 +354,9 @@ def optimize_all_pages(config):
     # paths first, run critical, then restore the absolute paths in
     # the inlined output.
     site_prefix = normalized_site_prefix(config)
-    stripped_prefix = site_prefix.rstrip("/") if site_prefix and site_prefix != "/" else None
+    stripped_prefix = (
+        site_prefix.rstrip("/") if site_prefix and site_prefix != "/" else None
+    )
     backed_up = []
 
     try:
@@ -373,7 +375,7 @@ def optimize_all_pages(config):
                 # Strip the site prefix so href=/fr-docs/style.css
                 # becomes href=style.css (relative to the HTML file).
                 rewritten = prefix_pat.sub(
-                    lambda m: f'href={m.group(1)}{m.group(2)}{m.group(1)}',
+                    lambda m: f"href={m.group(1)}{m.group(2)}{m.group(1)}",
                     raw,
                 )
                 html_file.write_text(rewritten, encoding="utf-8")
@@ -485,7 +487,7 @@ def add_internal_prefetch_links(html_text, config):
     def _repl(m):
         attrs = m.group("attrs")
         # Skip links that already declare a rel attribute
-        if re.search(r'\brel\s*=', attrs, re.IGNORECASE):
+        if re.search(r"\brel\s*=", attrs, re.IGNORECASE):
             return m.group(0)
         hm = href_re.search(attrs)
         if not hm:
