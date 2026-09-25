@@ -10,6 +10,7 @@ from urllib.request import urlopen
 
 DEFAULT_CONFIG = {
     "project_name": "My Project",
+    "copyright_holder": "CHANGE_ME",
     "project_url": "",
     "site_path_prefix": "/",
     "src_dir": "src",

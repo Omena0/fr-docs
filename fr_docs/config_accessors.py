@@ -1,8 +1,32 @@
 """Configuration accessor functions for fr-docs."""
 
+import warnings
+from pathlib import Path
+
 
 def project_name(config):
     return config.get("project_name", "Project Name")
+
+
+def copyright_holder(config):
+    if "_copyright_holder" in config:
+        return config["_copyright_holder"]
+    if configured := str(config.get("copyright_holder") or "").strip():
+        config["_copyright_holder"] = configured
+        return configured
+    if config.get("_project_name_specified", "project_name" in config):
+        if name := str(config.get("project_name") or "").strip():
+            config["_copyright_holder"] = name
+            return name
+    docs_path = Path(config.get("_docs_dir", ".")).resolve()
+    holder = docs_path.parent.name or project_name(config)
+    warnings.warn(
+        "copyright_holder and project_name are not configured; "
+        f"using docs folder parent name '{holder}'",
+        stacklevel=2,
+    )
+    config["_copyright_holder"] = holder
+    return holder
 
 
 def site_prefix(config):
@@ -34,9 +58,7 @@ def features_config(config):
 
 def feature_enabled(config, feature_name):
     value = features_config(config).get(feature_name, True)
-    if isinstance(value, dict):
-        return value.get("enabled", True)
-    return bool(value)
+    return value.get("enabled", True) if isinstance(value, dict) else bool(value)
 
 
 def src_dir(config):

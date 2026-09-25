@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 from .config_accessors import (
+    copyright_holder,
     feature_enabled,
     project_name,
     sidebar,
@@ -62,7 +63,7 @@ def _render_template_placeholders(config):
         return datetime.datetime.now(datetime.UTC).year
 
     def _get_copyright_holder():
-        return "Omena0" if "Omena0" in project_name(config) else project_name(config)
+        return copyright_holder(config)
 
     def _get_version_selector_html():
         if not feature_enabled(config, "versioning"):

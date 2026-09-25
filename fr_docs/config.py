@@ -6,6 +6,7 @@ from pathlib import Path
 
 DEFAULT_CONFIG = {
     "project_name": "Project Name",
+    "copyright_holder": "CHANGE_ME",
     "project_url": "",
     "site_path_prefix": "/",
     "src_dir": "src",
@@ -61,10 +62,12 @@ def load_config(config_path=None):
         config_path = Path(config_path)
 
     config = DEFAULT_CONFIG
+    project_name_specified = False
     if config_path.exists():
         with open(config_path, "r", encoding="utf-8") as f:
             loaded = json.load(f)
         config = _merge(DEFAULT_CONFIG, loaded)
+        project_name_specified = "project_name" in loaded
 
     config_path = config_path.resolve()
     docs_dir = (
@@ -73,6 +76,7 @@ def load_config(config_path=None):
     src_dir = docs_dir / config["src_dir"] if config["src_dir"] else docs_dir / "src"
     out_dir = docs_dir / config["out_dir"] if config["out_dir"] else docs_dir / "site"
 
+    config["_project_name_specified"] = project_name_specified
     config["_config_path"] = str(config_path)
     config["_docs_dir"] = str(docs_dir)
     config["_src_dir"] = str(src_dir)
