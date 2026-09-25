@@ -19,6 +19,7 @@ distribution.
 
 If PyPI is unreachable the publish proceeds with patch 0.
 """
+
 from __future__ import annotations
 
 import json
@@ -72,7 +73,7 @@ def published_patches(major: str, minor: str) -> set[int]:
     for version in data.get("releases", {}):
         if not version.startswith(prefix):
             continue
-        rest = version[len(prefix):]
+        rest = version[len(prefix) :]
         if rest.isdigit():
             patches.add(int(rest))
     return patches
