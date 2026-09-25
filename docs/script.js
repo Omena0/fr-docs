@@ -1357,19 +1357,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let linkPreviewCache = new Map();
   let previewTooltip = null;
   let previewHideTimeout = null;
-  const pagePreloadCache = new Set();
-
-  function preloadPageOnHover(href) {
-    if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
-    const key = new URL(toSiteHref(href), location.origin).href;
-    if (pagePreloadCache.has(key)) return;
-    pagePreloadCache.add(key);
-    // Fetch with high priority so the browser caches the page for an
-    // instant navigation. We deliberately avoid <link rel="preload" as="document">:
-    // Chrome's preload scanner rejects dynamically-injected document preloads
-    // with "unknown as or type values", and a fetch is all that's needed here.
-    void fetch(key, { cache: 'force-cache', priority: 'high' }).catch(() => { });
-  }
 
   function createPreviewTooltip(isCode) {
     if (previewTooltip) return previewTooltip;
@@ -1537,9 +1524,6 @@ document.addEventListener('DOMContentLoaded', () => {
       let hoverTimeout = null;
 
       link.addEventListener('mouseenter', async (e) => {
-        if (!isCodeRef && !isSearchCodeRef && !href.startsWith('#')) {
-          preloadPageOnHover(href);
-        }
         hoverTimeout = setTimeout(async () => {
           if (isCodeRef) {
             const refId = link.dataset.coderefId;

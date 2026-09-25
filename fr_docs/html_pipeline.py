@@ -359,11 +359,49 @@ def build_page(slug, config, slug_page_keys):
             f"https://docs.local{output_href(slug_output_name(slug, config), config)}"
         )
         out_html = absolutize_links(out_html, page_url, config)
+        out_html = add_internal_prefetch_links(out_html, config)
 
     out_name = slug_output_name(slug, config)
     out_path = os.path.join(config["_out_dir"], out_name)
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(out_html)
+
+
+def add_internal_prefetch_links(html_text, config):
+    """Add rel="prefetch" to every internal page link in production HTML.
+
+    Prefetching the whole site up front is cheap here (a handful of small
+    pages) and makes navigation instant. We deliberately avoid
+    <link rel="preload" as="document">: Chrome's preload scanner rejects
+    dynamically-injected document preloads, and rel="prefetch" is the
+    correct hint for "fetch this page for later navigation".
+    """
+    if not config.get("production", False):
+        return html_text
+
+    def _repl(m):
+        attrs = m.group("attrs")
+        href = m.group("href")
+        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            return m.group(0)
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", href):
+            return m.group(0)
+        # Only prefetch same-origin HTML pages (skip assets, anchors, etc.)
+        if not re.search(r"\.(?:html?|htm)$", href, re.IGNORECASE):
+            return m.group(0)
+        # Skip links that already declare a rel attribute
+        if re.search(r'\brel\s*=', attrs, re.IGNORECASE):
+            return m.group(0)
+        return f'<a rel="prefetch" {attrs}'
+
+    # Match <a ...> tags, capturing everything between <a and >, plus the
+    # href value (quoted or unquoted). The minifier strips quotes around
+    # attribute values, so both forms must be supported.
+    return re.sub(
+        r'<a\s+(?P<attrs>[^>]*?href=(?:"(?P<href1>[^"]*)"|\'(?P<href2>[^\']*)\'|(?P<href3>[^\s>]+))[^>]*)>',
+        lambda m: _repl(m),
+        html_text,
+    )
 
 
 logger = logging.getLogger(__name__)
