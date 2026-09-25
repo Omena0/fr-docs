@@ -1080,8 +1080,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return { start: 1, end: lines.length, selectedStart: null, selectedEnd: null, range: false };
   }
 
-  function renderReferenceLines(ref, fileContent) {
+  function renderReferenceLines(ref, fileContent, fullFile = false) {
     const view = referenceView(ref, fileContent);
+    if (fullFile) {
+      view.start = 1;
+      view.end = fileContent.split(/\r?\n/).length;
+    }
     let highlightedLines = '';
     for (let i = view.start; i <= view.end; i++) {
       const selected = view.selectedStart !== null && i >= view.selectedStart && i <= view.selectedEnd;
@@ -1112,7 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function createCodePanel(ref, fileContent) {
-    const view = renderReferenceLines(ref, fileContent);
+    const view = renderReferenceLines(ref, fileContent, true);
     const panel = document.createElement('div');
     panel.className = 'code-reference-panel';
     const location = ref.function
@@ -1244,16 +1248,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Link Hover Previews ────────────────────────────────────────
   let linkPreviewCache = new Map();
   let previewTooltip = null;
+  let previewHideTimeout = null;
 
-function createPreviewTooltip() {
+function createPreviewTooltip(isCode) {
     if (previewTooltip) return previewTooltip;
     previewTooltip = document.createElement('div');
     previewTooltip.className = 'link-preview-tooltip';
+    // width set outside
     previewTooltip.style.cssText = `
       position: fixed;
       z-index: 3000;
-      max-width: 80vw;
-      min-width: 650px;
       background: var(--bg-soft);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -1261,11 +1265,17 @@ function createPreviewTooltip() {
       padding: 12px;
       font-size: 0.85rem;
       line-height: 1.5;
-      pointer-events: none;
+      pointer-events: auto;
       opacity: 0;
       transition: opacity 0.15s ease;
     `;
     document.body.appendChild(previewTooltip);
+    previewTooltip.addEventListener('mouseenter', () => {
+      if (previewHideTimeout) clearTimeout(previewHideTimeout);
+    });
+    previewTooltip.addEventListener('mouseleave', () => {
+      hidePreviewTooltip();
+    });
     return previewTooltip;
   }
 
@@ -1347,18 +1357,24 @@ function createPreviewTooltip() {
     }
   }
 
-  function showPreviewTooltip(x, y, content) {
+  function showPreviewTooltip(x, y, content, isCode=false) {
+    if (previewHideTimeout) clearTimeout(previewHideTimeout);
     const tooltip = createPreviewTooltip();
     tooltip.innerHTML = content;
     tooltip.style.left = `${x + 15}px`;
     tooltip.style.top = `${y + 15}px`;
     tooltip.style.opacity = '1';
+    tooltip.style.minWidth = `${isCode ? 350 : 200}px`;
+    tooltip.style.maxWidth = `${isCode ? 80 : 30}vw`;
   }
 
   function hidePreviewTooltip() {
-    if (previewTooltip) {
-      previewTooltip.style.opacity = '0';
-    }
+    if (previewHideTimeout) clearTimeout(previewHideTimeout);
+    previewHideTimeout = setTimeout(() => {
+      if (previewTooltip && !previewTooltip.matches(':hover')) {
+        previewTooltip.style.opacity = '0';
+      }
+    }, 200);
   }
 
   function initLinkPreviews() {
@@ -1400,7 +1416,7 @@ function createPreviewTooltip() {
                   </div>
                   <div class="preview-code">${preview.highlightedLines}</div>
                 `;
-                showPreviewTooltip(e.clientX, e.clientY, content);
+                showPreviewTooltip(e.clientX, e.clientY, content, isCode=true);
               }
             }
           } else if (isSearchCodeRef) {
@@ -1419,7 +1435,7 @@ function createPreviewTooltip() {
                   </div>
                   <div class="preview-code">${preview.highlightedLines}</div>
                 `;
-                showPreviewTooltip(e.clientX, e.clientY, content);
+                showPreviewTooltip(e.clientX, e.clientY, content, isCode=true);
               }
             }
           } else if (!href.startsWith('#')) {
@@ -1430,7 +1446,7 @@ function createPreviewTooltip() {
                 <div class="preview-header">${preview.title || ''}</div>
                 <div class="preview-description">${preview.description || ''}</div>
               `;
-              showPreviewTooltip(e.clientX, e.clientY, content);
+              showPreviewTooltip(e.clientX, e.clientY, content, isCode=false);
             }
           }
         }, 300); // 300ms delay before showing preview

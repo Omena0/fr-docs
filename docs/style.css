@@ -1247,6 +1247,7 @@ h1 .ext-tag {
 }
 
 .code-reference-panel .code-line {
+  position: relative;
   display: block;
   padding: 0 16px;
   min-height: 1.6em;
@@ -1258,9 +1259,12 @@ h1 .ext-tag {
   box-shadow: inset 3px 0 var(--primary);
 }
 
-.code-reference-panel .code-line.range-middle .line-number {
-  background: var(--primary-soft);
-  box-shadow: inset 2px 0 var(--primary);
+.code-reference-panel .code-line.range-middle::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--primary);
 }
 
 .code-reference-panel .line-number {
@@ -1333,6 +1337,7 @@ h1 .ext-tag {
 }
 
 .link-preview-tooltip .code-line {
+  position: relative;
   display: block;
   padding: 1px 8px;
   white-space: pre;
@@ -1343,9 +1348,12 @@ h1 .ext-tag {
   box-shadow: inset 2px 0 var(--primary);
 }
 
-.link-preview-tooltip .code-line.range-middle .line-number {
-  background: var(--primary-soft);
-  box-shadow: inset 2px 0 var(--primary);
+.link-preview-tooltip .code-line.range-middle::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--primary);
 }
 
 .link-preview-tooltip .line-number {

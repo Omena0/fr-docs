@@ -152,7 +152,9 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
     for slug in slug_page_keys:
         filename = slug.rsplit("/", 1)[-1]
         if filename:
-            filename_map[filename.lower()] = slug_output_name(slug)
+            output = slug_output_name(slug)
+            filename_map[filename.lower()] = output
+            filename_map[f"{filename}.md".lower()] = output
 
     if not filename_map:
         return html_text
