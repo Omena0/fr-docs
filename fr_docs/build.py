@@ -23,6 +23,7 @@ from .config_accessors import (
     src_dir,
     workers,
     zstd_level,
+    feature_enabled,
 )
 from .git import build_version_options, collect_git_metadata, write_git_metadata
 from .html_pipeline import build_page
@@ -32,6 +33,58 @@ from .slug import (
     slug_output_name,
 )
 from .utils import normalized_site_prefix
+
+
+def collect_source_files(config):
+    """Collect source code files for code reference feature."""
+    source_files = {}
+    docs_path = Path(config["_docs_dir"])
+    src_dir_path = Path(config["_src_dir"])
+    
+    # Look for source files in common locations
+    search_dirs = [
+        docs_path.parent,  # Project root (where fr_docs source is)
+        src_dir_path.parent,  # Parent of src dir
+        docs_path,  # Docs directory itself
+    ]
+    
+    extensions = {'.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.cpp', '.c', '.h', '.hpp', 
+                  '.rs', '.go', '.rb', '.php', '.cs', '.kt', '.swift', '.scala', '.clj', 
+                  '.hs', '.ml', '.fs', '.vim', '.sh', '.bash', '.zsh', '.fish', '.ps1', 
+                  '.bat', '.cmd', '.sql', '.html', '.htm', '.xml', '.json', '.yaml', '.yml', 
+                  '.toml', '.ini', '.cfg', '.conf', '.md', '.txt', '.rst', '.css', '.scss', 
+                  '.sass', '.less', '.styl', '.vue', '.svelte', '.astro', '.mdx'}
+    
+    ignore_dirs = {'__pycache__', 'node_modules', 'venv', 'env', '.git', 'dist', 'build', 'target', 'out', 'site'}
+    
+    for search_dir in search_dirs:
+        if not search_dir.exists():
+            continue
+        try:
+            for file_path in search_dir.rglob('*'):
+                if file_path.is_file() and file_path.suffix in extensions:
+                    # Get relative path from search_dir for filtering
+                    try:
+                        rel_path = file_path.relative_to(search_dir)
+                    except ValueError:
+                        continue
+                    
+                    # Skip hidden directories in the relative path
+                    rel_parts = rel_path.parts
+                    if any(p.startswith('.') for p in rel_parts):
+                        continue
+                    if any(p in ignore_dirs for p in rel_parts):
+                        continue
+                    
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        source_files[str(rel_path)] = content
+                    except (OSError, UnicodeDecodeError):
+                        pass
+        except OSError:
+            pass
+    
+    return source_files
 
 
 def main(argv=None):
@@ -68,6 +121,13 @@ def main(argv=None):
         print(f"   Site prefix: {normalized_site_prefix(config)}")
     print()
 
+    # Collect source files for code references
+    if feature_enabled(config, "code_references"):
+        print("📂 Collecting source files for code references...")
+        source_files = collect_source_files(config)
+        config["_source_files"] = source_files
+        print(f"   Found {len(source_files)} source files")
+
     # Copy static assets
     docs_path = Path(config["_docs_dir"])
     os.makedirs(Path(config["_out_dir"]), exist_ok=True)
@@ -99,7 +159,10 @@ def main(argv=None):
     config["_slug_page_keys"] = build_slug_page_keys(slugs)
 
     # Build search index
-    search_index = build_search_index(slugs, config)
+    search_index = []
+    if feature_enabled(config, "search"):
+        search_index = build_search_index(slugs, config)
+    config["_search_index"] = search_index
 
     # Compress search index
     search_json = json.dumps(search_index, separators=(",", ":"))
@@ -124,6 +187,20 @@ def main(argv=None):
     print(
         f"   Search index: {len(search_json.encode('utf-8')):,} bytes → {len(compressed):,} zstd ({100 * len(compressed) / len(search_json.encode('utf-8')):.1f}%)"
     )
+
+    # Save source files for code references
+    if feature_enabled(config, "code_references") and config.get("_source_files"):
+        source_files_path = os.path.join(config["_out_dir"], "source_files.json")
+        with open(source_files_path, "w", encoding="utf-8") as f:
+            json.dump(config["_source_files"], f, separators=(",", ":"))
+        print(f"   Source files: {len(config['_source_files'])} files saved")
+
+    # Save symbol index for search
+    if feature_enabled(config, "code_references") and config.get("_symbol_index"):
+        symbol_index_path = os.path.join(config["_out_dir"], "symbol_index.json")
+        with open(symbol_index_path, "w", encoding="utf-8") as f:
+            json.dump(config["_symbol_index"], f, separators=(",", ":"))
+        print(f"   Symbol index: {len(config['_symbol_index'])} symbols saved")
 
     # Git metadata
     git_meta = collect_git_metadata(config)

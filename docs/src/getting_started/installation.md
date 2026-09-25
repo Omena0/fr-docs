@@ -63,6 +63,8 @@ fr-docs --help
 
 Expected output should show the available commands and options.
 
+[Back to Home](index.md)
+
 ## Upgrade
 
 ```bash

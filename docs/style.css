@@ -775,3 +775,207 @@ h1 .ext-tag {
 
 /* ===== Highlight.js overrides ===== */
 .hljs { background: transparent !important; padding: 0 !important; }
+
+/* ===== Code Reference Panel ===== */
+.code-reference {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.code-reference:hover {
+  text-decoration-style: solid;
+  color: var(--primary);
+}
+
+.code-reference-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.code-reference-panel .code-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  flex-shrink: 0;
+}
+
+.code-reference-panel .code-panel-file {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-reference-panel .code-panel-line {
+  font-size: 0.75rem;
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.code-reference-panel .code-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+
+.code-reference-panel .code-panel-close:hover {
+  color: var(--red);
+}
+
+.code-reference-panel .code-panel-content {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 70vh;
+  overflow: auto;
+  width: 100%;
+  max-width: 900px;
+}
+
+.code-reference-panel .code-lines {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.code-reference-panel .code-line {
+  display: flex;
+  padding: 0 16px;
+  min-height: 1.6em;
+}
+
+.code-reference-panel .code-line.highlight-target {
+  background: rgba(99, 102, 241, 0.15);
+  border-left: 3px solid var(--primary);
+  margin-left: -16px;
+  padding-left: 13px;
+}
+
+.code-reference-panel .line-number {
+  display: inline-block;
+  width: 50px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 16px;
+  user-select: none;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.code-reference-panel .code-line.highlight-target .line-number {
+  color: var(--primary);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.code-panel-open {
+  overflow: hidden;
+}
+
+/* ===== Link Preview Tooltip ===== */
+.link-preview-tooltip {
+  font-family: var(--font-sans);
+}
+
+.link-preview-tooltip .preview-header {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.link-preview-tooltip .preview-file {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.link-preview-tooltip .preview-line {
+  font-size: 0.7rem;
+  color: var(--primary);
+  background: var(--primary-soft);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.link-preview-tooltip .preview-description {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.link-preview-tooltip .preview-code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.link-preview-tooltip .code-line {
+  display: flex;
+  padding: 1px 8px;
+  white-space: pre;
+}
+
+.link-preview-tooltip .code-line.highlight-target {
+  background: rgba(99, 102, 241, 0.15);
+  border-left: 2px solid var(--primary);
+  margin-left: -8px;
+  padding-left: 6px;
+}
+
+.link-preview-tooltip .line-number {
+  display: inline-block;
+  width: 40px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 12px;
+  user-select: none;
+  flex-shrink: 0;
+  opacity: 0.6;
+  font-size: 0.7rem;
+}
+
+.link-preview-tooltip .code-line.highlight-target .line-number {
+  color: var(--primary);
+  font-weight: 600;
+  opacity: 1;
+}

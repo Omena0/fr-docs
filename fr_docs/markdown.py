@@ -19,6 +19,9 @@ _DECORATORS_DEST = "decorators"
 
 _MD_LOCAL = threading.local()
 
+# Pattern to match code reference links: [text](path/to/file.py:123) or [text](path/to/file.py)
+# Only matches source code files, not markdown/documentation files
+CODE_REF_RE = re.compile(r'\[([^\]]+)\]\(([a-zA-Z0-9_./\\-]+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|hpp|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|vim|sh|bash|zsh|fish|ps1|bat|cmd|sql|html|htm|xml|json|yaml|yml|toml|ini|cfg|conf|css|scss|sass|less|styl|vue|svelte|astro|mdx))(?::(\d+))?\)')
 
 def _make_md():
     return markdown.Markdown(
@@ -126,6 +129,44 @@ def absolutize_links(html_text, page_url, site_prefix):
         return f"{attr}={absolute}"
 
     return URL_ATTR_RE.sub(_repl, html_text)
+
+
+def process_code_references(md_text, config):
+    """Process code reference links in markdown: [text](path/to/file.py:123).
+    
+    Returns tuple of (processed_text, code_refs) where code_refs is a list of
+    dicts with keys: file, line, column, link_text.
+    """
+    if not config.get("features", {}).get("code_references", True):
+        return md_text, []
+    
+    code_refs = []
+    ref_counter = 0
+    
+    def _repl(m):
+        nonlocal ref_counter
+        link_text = m.group(1)
+        file_path = m.group(2)
+        line_str = m.group(3)
+        line = int(line_str) if line_str else None
+        
+        ref_id = f"coderef-{ref_counter}"
+        ref_counter += 1
+        
+        code_refs.append({
+            "id": ref_id,
+            "file": file_path,
+            "line": line,
+            "column": None,  # Could be extended to support column
+            "link_text": link_text,
+        })
+        
+        # Replace with a special link that JavaScript can handle
+        line_suffix = f":{line}" if line else ""
+        return f'<a href="#coderef:{file_path}{line_suffix}" class="code-reference" data-coderef-id="{ref_id}">{html.escape(link_text)}</a>'
+    
+    processed = CODE_REF_RE.sub(_repl, md_text)
+    return processed, code_refs
 
 
 def auto_link_markdown(md_text, search_map):

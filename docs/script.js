@@ -319,6 +319,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const decompressed = fzstd.decompress(compressed);
         const json = new TextDecoder().decode(decompressed);
         searchIndex = JSON.parse(json);
+        
+        // Also load symbol index
+        await loadSymbolIndex();
+        
         return emitSearchReady();
       } catch (e) {
         console.error('Failed to fetch/decompress search index:', e);
@@ -344,10 +348,28 @@ document.addEventListener('DOMContentLoaded', () => {
       void loadSearchIndex();
     }, SEARCH_PRELOAD_DELAY_MS);
   }
+scheduleSearchIndexLoad();
 
-  scheduleSearchIndexLoad();
 
-  
+  let searchIndex = null;
+  let symbolIndex = null;
+
+  // ── Load symbol index ──────────────────────────────────────────
+  async function loadSymbolIndex() {
+    if (symbolIndex !== null) return symbolIndex;
+    try {
+      const response = await fetch(toSiteHref('symbol_index.json'), { cache: 'force-cache' });
+      if (response.ok) {
+        symbolIndex = await response.json();
+      } else {
+        symbolIndex = [];
+      }
+    } catch (e) {
+      console.warn('Failed to load symbol index:', e);
+      symbolIndex = [];
+    }
+    return symbolIndex;
+  }
 
   // ── Header full-text search ─────────────────────────────────
   const headerSearch = document.getElementById('header-search');
@@ -401,8 +423,41 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           if (bestSec) break;
         }
-        const hit = { url: page.url, title: page.title, text: bestSec ? bestSec.text : '', score: s };
+        const hit = { url: page.url, title: page.title, text: bestSec ? bestSec.text : '', score: s, type: 'page' };
         hits.push(hit);
+      }
+    }
+
+    // Also search symbols
+    if (symbolIndex && symbolIndex.length > 0) {
+      const qLower = q.toLowerCase();
+      for (const sym of symbolIndex) {
+        let score = 0;
+        const name = (sym.name || '').toLowerCase();
+        const file = (sym.file || '').toLowerCase();
+        const type = (sym.type || '').toLowerCase();
+        
+        if (name === qLower) score += 150;
+        else if (name.includes(qLower)) score += 80 - Math.min(50, name.indexOf(qLower));
+        else {
+          // Check tokens
+          for (const t of tokens) {
+            if (name.includes(t)) score += 10;
+            if (type.includes(t)) score += 5;
+          }
+        }
+        
+        if (score > 0) {
+          const hit = { 
+            url: `#coderef:${sym.file}:${sym.line}`, 
+            title: `${sym.name} (${sym.type})`,
+            text: `in ${sym.file}:${sym.line} — ${sym.context || ''}`,
+            score: score,
+            type: 'symbol',
+            symbol: sym
+          };
+          hits.push(hit);
+        }
       }
     }
 
@@ -425,7 +480,8 @@ document.addEventListener('DOMContentLoaded', () => {
     searchResults.innerHTML = unique.map(h => {
       const snippet = h.text ? h.text.substring(0, 100) : '';
       const heading = h.heading ? ` › ${h.heading}` : '';
-      const fmtTitle = (h.title + heading).replace(/\[ext\]/g, '<span class="ext-tag">ext</span>');
+      const typeBadge = h.type === 'symbol' ? '<span class="ext-tag" style="margin-left:6px;background:var(--primary-soft);color:var(--primary)">symbol</span>' : '';
+      const fmtTitle = (h.title + heading + typeBadge).replace(/\[ext\]/g, '<span class="ext-tag">ext</span>');
       const href = addVerToHref(h.url);
       return `<a class="search-hit" href="${href}"><strong>${fmtTitle}</strong><span>${snippet}</span></a>`;
     }).join('');
@@ -885,4 +941,465 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   try { populateVersionSelector(); } catch (e) { /* ignore */ }
+
+  // ── Code Reference Panel ──────────────────────────────────────
+  let sourceFiles = null;
+  let codeRefs = null;
+
+  async function loadSourceFiles() {
+    if (sourceFiles !== null) return sourceFiles;
+    try {
+      const response = await fetch(toSiteHref('source_files.json'), { cache: 'force-cache' });
+      if (response.ok) {
+        sourceFiles = await response.json();
+      } else {
+        sourceFiles = {};
+      }
+    } catch (e) {
+      console.warn('Failed to load source files:', e);
+      sourceFiles = {};
+    }
+    return sourceFiles;
+  }
+
+  function parseCodeRefs() {
+    if (codeRefs !== null) return codeRefs;
+    const el = document.getElementById('code-refs-data');
+    if (el && el.textContent.trim()) {
+      try {
+        codeRefs = JSON.parse(el.textContent);
+      } catch (e) {
+        console.warn('Failed to parse code refs:', e);
+        codeRefs = [];
+      }
+    } else {
+      codeRefs = [];
+    }
+    return codeRefs;
+  }
+
+  function getLanguageFromPath(filePath) {
+    const ext = filePath.split('.').pop().toLowerCase();
+    const langMap = {
+      'py': 'python',
+      'js': 'javascript',
+      'ts': 'typescript',
+      'tsx': 'tsx',
+      'jsx': 'jsx',
+      'java': 'java',
+      'cpp': 'cpp',
+      'cc': 'cpp',
+      'cxx': 'cpp',
+      'c': 'c',
+      'h': 'cpp',
+      'hpp': 'cpp',
+      'rs': 'rust',
+      'go': 'go',
+      'rb': 'ruby',
+      'php': 'php',
+      'cs': 'csharp',
+      'kt': 'kotlin',
+      'swift': 'swift',
+      'scala': 'scala',
+      'clj': 'clojure',
+      'hs': 'haskell',
+      'ml': 'ocaml',
+      'fs': 'fsharp',
+      'sh': 'bash',
+      'bash': 'bash',
+      'zsh': 'bash',
+      'fish': 'bash',
+      'ps1': 'powershell',
+      'bat': 'batch',
+      'cmd': 'batch',
+      'sql': 'sql',
+      'html': 'html',
+      'htm': 'html',
+      'xml': 'xml',
+      'json': 'json',
+      'yaml': 'yaml',
+      'yml': 'yaml',
+      'toml': 'toml',
+      'ini': 'ini',
+      'cfg': 'ini',
+      'conf': 'ini',
+      'md': 'markdown',
+      'txt': 'plaintext',
+      'rst': 'rst',
+      'css': 'css',
+      'scss': 'scss',
+      'sass': 'sass',
+      'less': 'less',
+      'styl': 'stylus',
+      'vue': 'vue',
+      'svelte': 'svelte',
+      'astro': 'astro',
+      'mdx': 'mdx',
+    };
+    return langMap[ext] || 'plaintext';
+  }
+
+  function highlightCode(code, language) {
+    // Simple highlighting for common languages
+    if (!code) return '<span class="cm">(empty file)</span>';
+    const escaped = code
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>');
+    
+    // Very basic syntax highlighting for Python-like languages
+    if (language === 'python') {
+      return escaped
+        .replace(/^(\s*)(#.*)$/gm, '$1<span class="cm">$2</span>')
+        .replace(/\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g, '<span class="kw">$1</span>')
+        .replace(/(["'])((?:\\.|(?!\1).)*)\1/g, '<span class="st">$1$2$1</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="nb">$1</span>')
+        .replace(/(@\w+)/g, '<span class="dc">$1</span>');
+    }
+    return `<span class="plain">${escaped}</span>`;
+  }
+
+  function createCodePanel(ref, fileContent) {
+    const language = getLanguageFromPath(ref.file);
+    const lines = fileContent.split('\n');
+    const targetLine = ref.line || 1;
+    const startLine = Math.max(1, targetLine - 2);
+    const endLine = Math.min(lines.length, targetLine + 8);
+    
+    let highlightedLines = '';
+    for (let i = startLine; i <= endLine; i++) {
+      const lineNum = i;
+      const lineContent = lines[i - 1] || '';
+      const isTarget = i === targetLine;
+      const highlighted = highlightCode(lineContent, language);
+      highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${lineNum}"><span class="line-number">${lineNum}</span>${highlighted}</div>`;
+    }
+    
+    const panel = document.createElement('div');
+    panel.className = 'code-reference-panel';
+    panel.innerHTML = `
+      <div class="code-panel-header">
+        <span class="code-panel-file">${ref.file}</span>
+        ${ref.line ? `<span class="code-panel-line">Line ${ref.line}</span>` : ''}
+        <button class="code-panel-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="code-panel-content">
+        <div class="code-lines">${highlightedLines}</div>
+      </div>
+    `;
+    
+    // Add close handler
+    panel.querySelector('.code-panel-close').addEventListener('click', () => {
+      panel.remove();
+      document.body.classList.remove('code-panel-open');
+    });
+    
+    // Close on outside click
+    panel.addEventListener('click', (e) => {
+      if (e.target === panel) {
+        panel.remove();
+        document.body.classList.remove('code-panel-open');
+      }
+    });
+    
+    // Close on Escape
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        panel.remove();
+        document.body.classList.remove('code-panel-open');
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    
+    return panel;
+  }
+
+  function showCodePanel(ref) {
+    const fileContent = sourceFiles[ref.file];
+    if (!fileContent) {
+      // Try to fetch the file directly
+      fetch(toSiteHref(ref.file), { cache: 'force-cache' })
+        .then(r => r.ok ? r.text() : null)
+        .then(content => {
+          if (content) {
+            sourceFiles[ref.file] = content;
+            const panel = createCodePanel(ref, content);
+            document.body.appendChild(panel);
+            document.body.classList.add('code-panel-open');
+            // Scroll to target line
+            requestAnimationFrame(() => {
+              const targetLine = panel.querySelector('.highlight-target');
+              if (targetLine) targetLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+          } else {
+            console.warn(`Could not load source file: ${ref.file}`);
+          }
+        });
+      return;
+    }
+    
+    const panel = createCodePanel(ref, fileContent);
+    document.body.appendChild(panel);
+    document.body.classList.add('code-panel-open');
+    // Scroll to target line
+    requestAnimationFrame(() => {
+      const targetLine = panel.querySelector('.highlight-target');
+      if (targetLine) targetLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  function initCodeReferences() {
+    if (!parseCodeRefs().length) return;
+    
+    loadSourceFiles().then(() => {
+      document.querySelectorAll('a.code-reference').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const refId = link.dataset.coderefId;
+          const refs = parseCodeRefs();
+          const ref = refs.find(r => r.id === refId);
+          if (ref) {
+            showCodePanel(ref);
+          }
+        });
+      });
+    });
+  }
+
+  // Initialize code references
+  initCodeReferences();
+
+  // ── Link Hover Previews ────────────────────────────────────────
+  let linkPreviewCache = new Map();
+  let previewTooltip = null;
+
+  function createPreviewTooltip() {
+    if (previewTooltip) return previewTooltip;
+    previewTooltip = document.createElement('div');
+    previewTooltip.className = 'link-preview-tooltip';
+    previewTooltip.style.cssText = `
+      position: fixed;
+      z-index: 3000;
+      max-width: 400px;
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      padding: 12px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    `;
+    document.body.appendChild(previewTooltip);
+    return previewTooltip;
+  }
+
+  function getLanguageFromPath(filePath) {
+    const ext = filePath.split('.').pop().toLowerCase();
+    const langMap = {
+      'py': 'python', 'js': 'javascript', 'ts': 'typescript', 'tsx': 'tsx', 'jsx': 'jsx',
+      'java': 'java', 'cpp': 'cpp', 'cc': 'cpp', 'cxx': 'cpp', 'c': 'c', 'h': 'cpp',
+      'hpp': 'cpp', 'rs': 'rust', 'go': 'go', 'rb': 'ruby', 'php': 'php', 'cs': 'csharp',
+      'kt': 'kotlin', 'swift': 'swift', 'scala': 'scala', 'clj': 'clojure', 'hs': 'haskell',
+      'ml': 'ocaml', 'fs': 'fsharp', 'sh': 'bash', 'bash': 'bash', 'zsh': 'bash',
+      'fish': 'bash', 'ps1': 'powershell', 'bat': 'batch', 'cmd': 'batch', 'sql': 'sql',
+      'html': 'html', 'htm': 'html', 'xml': 'xml', 'json': 'json', 'yaml': 'yaml',
+      'yml': 'yaml', 'toml': 'toml', 'ini': 'ini', 'cfg': 'ini', 'conf': 'ini',
+      'md': 'markdown', 'txt': 'plaintext', 'rst': 'rst', 'css': 'css', 'scss': 'scss',
+      'sass': 'sass', 'less': 'less', 'styl': 'stylus', 'vue': 'vue', 'svelte': 'svelte',
+      'astro': 'astro', 'mdx': 'mdx',
+    };
+    return langMap[ext] || 'plaintext';
+  }
+
+  function highlightCode(code, language) {
+    if (!code) return '<span class="cm">(empty file)</span>';
+    const escaped = code
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>');
+    
+    if (language === 'python') {
+      return escaped
+        .replace(/^(\s*)(#.*)$/gm, '$1<span class="cm">$2</span>')
+        .replace(/\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g, '<span class="kw">$1</span>')
+        .replace(/(["'])((?:\\.|(?!\1).)*)\1/g, '<span class="st">$1$2$1</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="nb">$1</span>')
+        .replace(/(@\w+)/g, '<span class="dc">$1</span>');
+    }
+    return `<span class="plain">${escaped}</span>`;
+  }
+
+  async function fetchPagePreview(href) {
+    const cacheKey = href.split('#')[0];
+    if (linkPreviewCache.has(cacheKey)) {
+      return linkPreviewCache.get(cacheKey);
+    }
+
+    try {
+      const response = await fetch(toSiteHref(cacheKey), { cache: 'force-cache' });
+      if (!response.ok) return null;
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      const h1 = doc.querySelector('h1');
+      const title = h1 ? h1.textContent.trim() : '';
+      
+      // Get first paragraph after h1
+      let description = '';
+      if (h1) {
+        let next = h1.nextElementSibling;
+        while (next && next.tagName !== 'H2' && next.tagName !== 'H3') {
+          if (next.tagName === 'P' && next.textContent.trim()) {
+            description = next.textContent.trim().substring(0, 300);
+            break;
+          }
+          next = next.nextElementSibling;
+        }
+      }
+      
+      const preview = { title, description };
+      linkPreviewCache.set(cacheKey, preview);
+      return preview;
+    } catch (e) {
+      console.warn('Failed to fetch page preview:', e);
+      return null;
+    }
+  }
+
+  async function fetchCodePreview(filePath, line) {
+    const cacheKey = `${filePath}:${line || 0}`;
+    if (linkPreviewCache.has(cacheKey)) {
+      return linkPreviewCache.get(cacheKey);
+    }
+
+    try {
+      // Try to get from sourceFiles first
+      await loadSourceFiles();
+      let content = sourceFiles[filePath];
+      
+      if (!content) {
+        const response = await fetch(toSiteHref(filePath), { cache: 'force-cache' });
+        if (response.ok) {
+          content = await response.text();
+          sourceFiles[filePath] = content;
+        }
+      }
+      
+      if (!content) return null;
+      
+      const lines = content.split('\n');
+      const targetLine = line || 1;
+      const startLine = Math.max(1, targetLine - 2);
+      const endLine = Math.min(lines.length, targetLine + 8);
+      
+      const language = getLanguageFromPath(filePath);
+      let highlightedLines = '';
+      for (let i = startLine; i <= endLine; i++) {
+        const lineNum = i;
+        const lineContent = lines[i - 1] || '';
+        const isTarget = i === targetLine;
+        const highlighted = highlightCode(lineContent, language);
+        highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${lineNum}"><span class="line-number">${lineNum}</span>${highlighted}</div>`;
+      }
+      
+      const preview = { highlightedLines, filePath, targetLine, startLine, endLine };
+      linkPreviewCache.set(cacheKey, preview);
+      return preview;
+    } catch (e) {
+      console.warn('Failed to fetch code preview:', e);
+      return null;
+    }
+  }
+
+  function showPreviewTooltip(x, y, content) {
+    const tooltip = createPreviewTooltip();
+    tooltip.innerHTML = content;
+    tooltip.style.left = `${x + 15}px`;
+    tooltip.style.top = `${y + 15}px`;
+    tooltip.style.opacity = '1';
+  }
+
+  function hidePreviewTooltip() {
+    if (previewTooltip) {
+      previewTooltip.style.opacity = '0';
+    }
+  }
+
+  function initLinkPreviews() {
+    if (!featureEnabled('link_preview')) return;
+    
+    document.querySelectorAll('a[href]').forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href) return;
+      
+      // Skip external links, anchors, and special links
+      if (href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:') || href.startsWith('#')) return;
+      
+      // Check if it's a code reference link
+      const isCodeRef = link.classList.contains('code-reference');
+      
+      let hoverTimeout = null;
+      
+      link.addEventListener('mouseenter', async (e) => {
+        hoverTimeout = setTimeout(async () => {
+          if (isCodeRef) {
+            const refId = link.dataset.coderefId;
+            const refs = parseCodeRefs();
+            const ref = refs.find(r => r.id === refId);
+            if (ref) {
+              const preview = await fetchCodePreview(ref.file, ref.line);
+              if (preview) {
+                const content = `
+                  <div class="preview-header">
+                    <span class="preview-file">${preview.filePath}</span>
+                    ${preview.targetLine ? `<span class="preview-line">Line ${preview.targetLine}</span>` : ''}
+                  </div>
+                  <div class="preview-code">${preview.highlightedLines}</div>
+                `;
+                showPreviewTooltip(e.clientX, e.clientY, content);
+              }
+            }
+          } else {
+            // Regular page link
+            const preview = await fetchPagePreview(href);
+            if (preview && (preview.title || preview.description)) {
+              const content = `
+                <div class="preview-header">${preview.title || ''}</div>
+                <div class="preview-description">${preview.description || ''}</div>
+              `;
+              showPreviewTooltip(e.clientX, e.clientY, content);
+            }
+          }
+        }, 300); // 300ms delay before showing preview
+      });
+      
+      link.addEventListener('mouseleave', () => {
+        if (hoverTimeout) clearTimeout(hoverTimeout);
+        hidePreviewTooltip();
+      });
+      
+      link.addEventListener('mousemove', (e) => {
+        if (previewTooltip && previewTooltip.style.opacity === '1') {
+          previewTooltip.style.left = `${e.clientX + 15}px`;
+          previewTooltip.style.top = `${e.clientY + 15}px`;
+        }
+      });
+    });
+  }
+
+  // Check if feature is enabled (from config)
+  function featureEnabled(name) {
+    // This would ideally come from a config object embedded in the page
+    // For now, check if the feature is generally available
+    return true; // Always enabled for now
+  }
+
+  // Initialize link previews
+  initLinkPreviews();
+
 });

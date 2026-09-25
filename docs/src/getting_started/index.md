@@ -63,3 +63,11 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 
 - [Architecture](../internals/architecture.md) - System architecture
 - [Caching](../internals/caching.md) - Build caching system
+
+<related>
+
+<backlinks>
+
+## Code References
+
+See the [main entry point](fr_docs/__main__.py:12) and the [build module](fr_docs/build.py:38).

@@ -28,6 +28,14 @@ def versioning_config(config):
     return config.get("versioning", {})
 
 
+def features_config(config):
+    return config.get("features", {})
+
+
+def feature_enabled(config, feature_name):
+    return features_config(config).get(feature_name, True)
+
+
 def src_dir(config):
     return config.get("_src_dir", "src")
 
