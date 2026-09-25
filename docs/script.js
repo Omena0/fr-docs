@@ -967,22 +967,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Code Reference Panel ──────────────────────────────────────
   let sourceFiles = null;
+  let sourceHighlights = null;
   let codeRefs = null;
 
   async function loadSourceFiles() {
     if (sourceFiles !== null) return sourceFiles;
     try {
-      const response = await fetch(toSiteHref('source_files.json'), { cache: 'force-cache' });
-      if (response.ok) {
-        sourceFiles = await response.json();
-      } else {
-        sourceFiles = {};
-      }
+      const [filesResponse, highlightsResponse] = await Promise.all([
+        fetch(toSiteHref('source_files.json'), { cache: 'force-cache' }),
+        fetch(toSiteHref('source_highlights.json'), { cache: 'force-cache' })
+      ]);
+      sourceFiles = filesResponse.ok ? await filesResponse.json() : {};
+      sourceHighlights = highlightsResponse.ok ? await highlightsResponse.json() : {};
     } catch (e) {
       console.warn('Failed to load source files:', e);
       sourceFiles = {};
+      sourceHighlights = {};
     }
     return sourceFiles;
+  }
+
+  function escapeSourceText(text) {
+    return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function highlightedSourceLine(filePath, lineNumber) {
+    const lines = sourceHighlights && sourceHighlights[filePath];
+    if (lines && lines[lineNumber - 1] !== undefined) return lines[lineNumber - 1];
+    const content = sourceFiles && sourceFiles[filePath];
+    if (!content) return '<span class="cm">(empty file)</span>';
+    return escapeSourceText(content.split(/\r?\n/)[lineNumber - 1] || '');
   }
 
   function parseCodeRefs() {
@@ -1001,157 +1015,17 @@ document.addEventListener('DOMContentLoaded', () => {
     return codeRefs;
   }
 
-  function getLanguageFromPath(filePath) {
-    const ext = filePath.split('.').pop().toLowerCase();
-    const langMap = {
-      'py': 'python',
-      'js': 'javascript',
-      'ts': 'typescript',
-      'tsx': 'tsx',
-      'jsx': 'jsx',
-      'java': 'java',
-      'cpp': 'cpp',
-      'cc': 'cpp',
-      'cxx': 'cpp',
-      'c': 'c',
-      'h': 'cpp',
-      'hpp': 'cpp',
-      'rs': 'rust',
-      'go': 'go',
-      'rb': 'ruby',
-      'php': 'php',
-      'cs': 'csharp',
-      'kt': 'kotlin',
-      'swift': 'swift',
-      'scala': 'scala',
-      'clj': 'clojure',
-      'hs': 'haskell',
-      'ml': 'ocaml',
-      'fs': 'fsharp',
-      'sh': 'bash',
-      'bash': 'bash',
-      'zsh': 'bash',
-      'fish': 'bash',
-      'ps1': 'powershell',
-      'bat': 'batch',
-      'cmd': 'batch',
-      'sql': 'sql',
-      'html': 'html',
-      'htm': 'html',
-      'xml': 'xml',
-      'json': 'json',
-      'yaml': 'yaml',
-      'yml': 'yaml',
-      'toml': 'toml',
-      'ini': 'ini',
-      'cfg': 'ini',
-      'conf': 'ini',
-      'md': 'markdown',
-      'txt': 'plaintext',
-      'rst': 'rst',
-      'css': 'css',
-      'scss': 'scss',
-      'sass': 'sass',
-      'less': 'less',
-      'styl': 'stylus',
-      'vue': 'vue',
-      'svelte': 'svelte',
-      'astro': 'astro',
-      'mdx': 'mdx',
-    };
-    return langMap[ext] || 'plaintext';
-  }
-
-  function extractStrings(code) {
-    const strings = [];
-    const placeholderBase = "___STR_";
-
-    // Match both single and double quoted strings, including escaped quotes
-    // Handle both '...' and "..." including escaped quotes inside
-    const stringRegex = /(["'])(?:\\.|(?!\1)[^\\])*\1/g;
-
-    let modified = code.replace(stringRegex, (match) => {
-        strings.push(match);
-        return placeholderBase + (strings.length - 1) + "___";
-    });
-
-    return { modified, strings };
-  }
-
-  function extractComments(code) {
-    const comments = [];
-    const placeholderBase = "___CMT_";
-    const commentRegex = /^(\s*)(#.*)$/gm;
-
-    let modified = code.replace(commentRegex, (match) => {
-        comments.push(match);
-        return placeholderBase + (comments.length - 1) + "___";
-    });
-
-    return { modified, comments };
-  }
-
-  function restoreStrings(code, strings) {
-    const placeholderBase = "___STR_";
-    return code.replace(new RegExp(placeholderBase + '(\\d+)_' + '___', 'g'), (match, index) => {
-        return strings[parseInt(index, 10)] || match;
-    });
-  }
-
-  function restoreComments(code, comments) {
-    const placeholderBase = "___CMT_";
-    return code.replace(new RegExp(placeholderBase + '(\\d+)_' + '___', 'g'), (match, index) => {
-        return comments[parseInt(index, 10)] || match;
-    });
-  }
-
-  function highlightCode(code, language) {
-    // Simple highlighting for common languages
-    if (!code) return '<span class="cm">(empty file)</span>';
-    const escaped = code
-      .replace(/&/g, '&' + 'amp;')
-      .replace(/</g, '&' + 'lt;')
-      .replace(/>/g, '&' + 'gt;');
-
-    // Very basic syntax highlighting for Python-like languages
-    if (language === 'python') {
-      // Extract comments first
-      const { modified: afterComments, comments } = extractComments(escaped);
-      // Extract strings from the result
-      const { modified: afterStrings, strings } = extractStrings(afterComments);
-
-      let highlighted = afterStrings
-        .replace(/\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g, '<span class="kw">$&</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="nb">$&</span>')
-        .replace(/(@\w+)/g, '<span class="dc">$&</span>');
-
-      // Restore comments and highlight them
-      highlighted = restoreComments(highlighted, comments);
-      highlighted = highlighted.replace(/^(\s*)(#.*)$/gm, '$1<span class="cm">$2</span>');
-
-      // Restore strings and highlight them
-      highlighted = restoreStrings(highlighted, strings);
-      highlighted = highlighted.replace(/(["'])(?:\\.|(?!\1)[^\\])*\1/g, '<span class="st">$&</span>');
-
-      return highlighted;
-    }
-    return `<span class="plain">${escaped}</span>`;
-  }
-
   function createCodePanel(ref, fileContent) {
-    const language = getLanguageFromPath(ref.file);
-    const lines = fileContent.split('\n');
+    const lines = fileContent.split(/\r?\n/);
     const targetLine = ref.line || 1;
     const startLine = Math.max(1, targetLine - 2);
     const endLine = Math.min(lines.length, targetLine + 8);
 
     let highlightedLines = '';
     for (let i = startLine; i <= endLine; i++) {
-      const lineNum = i;
-      const lineContent = lines[i - 1] || '';
       const isTarget = i === targetLine;
-      const highlighted = highlightCode(lineContent, language);
-      highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${lineNum}"><span class="line-number">${lineNum}</span>${highlighted}</div>`;
+      const highlighted = highlightedSourceLine(ref.file, i);
+      highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${i}"><span class="line-number">${i}</span>${highlighted}</div>`;
     }
 
     const panel = document.createElement('div');
@@ -1303,24 +1177,6 @@ function createPreviewTooltip() {
     return previewTooltip;
   }
 
-  function getLanguageFromPath(filePath) {
-    const ext = filePath.split('.').pop().toLowerCase();
-    const langMap = {
-      'py': 'python', 'js': 'javascript', 'ts': 'typescript', 'tsx': 'tsx', 'jsx': 'jsx',
-      'java': 'java', 'cpp': 'cpp', 'cc': 'cpp', 'cxx': 'cpp', 'c': 'c', 'h': 'cpp',
-      'hpp': 'cpp', 'rs': 'rust', 'go': 'go', 'rb': 'ruby', 'php': 'php', 'cs': 'csharp',
-      'kt': 'kotlin', 'swift': 'swift', 'scala': 'scala', 'clj': 'clojure', 'hs': 'haskell',
-      'ml': 'ocaml', 'fs': 'fsharp', 'sh': 'bash', 'bash': 'bash', 'zsh': 'bash',
-      'fish': 'bash', 'ps1': 'powershell', 'bat': 'batch', 'cmd': 'batch', 'sql': 'sql',
-      'html': 'html', 'htm': 'html', 'xml': 'xml', 'json': 'json', 'yaml': 'yaml',
-      'yml': 'yaml', 'toml': 'toml', 'ini': 'ini', 'cfg': 'ini', 'conf': 'ini',
-      'md': 'markdown', 'txt': 'plaintext', 'rst': 'rst', 'css': 'css', 'scss': 'scss',
-      'sass': 'sass', 'less': 'less', 'styl': 'stylus', 'vue': 'vue', 'svelte': 'svelte',
-      'astro': 'astro', 'mdx': 'mdx',
-    };
-    return langMap[ext] || 'plaintext';
-  }
-
   async function fetchPagePreview(href) {
     const cacheKey = href.split('#')[0];
     if (linkPreviewCache.has(cacheKey)) {
@@ -1380,19 +1236,16 @@ function createPreviewTooltip() {
 
       if (!content) return null;
 
-      const lines = content.split('\n');
+      const lines = content.split(/\r?\n/);
       const targetLine = line || 1;
       const startLine = Math.max(1, targetLine - 2);
       const endLine = Math.min(lines.length, targetLine + 8);
 
-      const language = getLanguageFromPath(filePath);
       let highlightedLines = '';
       for (let i = startLine; i <= endLine; i++) {
-        const lineNum = i;
-        const lineContent = lines[i - 1] || '';
         const isTarget = i === targetLine;
-        const highlighted = highlightCode(lineContent, language);
-        highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${lineNum}"><span class="line-number">${lineNum}</span>${highlighted}</div>`;
+        const highlighted = highlightedSourceLine(filePath, i);
+        highlightedLines += `<div class="code-line${isTarget ? ' highlight-target' : ''}" data-line="${i}"><span class="line-number">${i}</span>${highlighted}</div>`;
       }
 
       const preview = { highlightedLines, filePath, targetLine, startLine, endLine };

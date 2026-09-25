@@ -32,6 +32,7 @@ from .slug import (
     build_slug_page_keys,
     slug_output_name,
 )
+from .syntax import highlight_source_lines
 from .utils import normalized_site_prefix
 
 
@@ -254,6 +255,19 @@ def main(argv=None):
         with open(source_files_path, "w", encoding="utf-8") as f:
             json.dump(config["_source_files"], f, separators=(",", ":"))
         print(f"   Source files: {len(config['_source_files'])} files saved")
+
+        source_highlights = {
+            path: highlight_source_lines(content, path)
+            for path, content in config["_source_files"].items()
+        }
+        with open(
+            os.path.join(config["_out_dir"], "source_highlights.json"),
+            "w",
+            encoding="utf-8",
+        ) as f:
+            json.dump(source_highlights, f, separators=(",", ":"))
+
+        print(f"   Source highlights: {len(source_highlights)} files saved")
 
     # Save symbol index for search
     if feature_enabled(config, "code_references") and config.get("_symbol_index"):

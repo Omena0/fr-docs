@@ -28,7 +28,7 @@ CODE_REF_RE = re.compile(
 # Pattern to match code reference links in HTML (already converted by markdown)
 CODE_REF_HTML_RE = re.compile(
     r'(<a\s+href=(["\'])([^"\']+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|sh|bash|zsh|fish|ps1|bat|cmd|sql|html|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt|rst|css|scss|sass|less|styl|vue|svelte|astro|mdx):\d+)["\'][^>]*>)(.*?)(</a>)',
-    flags=re.IGNORECASE
+    flags=re.IGNORECASE,
 )
 
 
@@ -95,11 +95,13 @@ def rewrite_md_links(html_text, current_slug, slug_page_keys):
         target = m.group(2)
         anchor = m.group(3) or ""
         resolved = resolve_md_target(target, current_slug, slug_page_keys)
-        return f'href={quote}{resolved}{anchor}{quote}'
+        return f"href={quote}{resolved}{anchor}{quote}"
 
     # Match href="target.md#anchor" or href='target.md#anchor'
     # Also handle query parameters: href="target.md?param=value#anchor"
-    return re.sub(r'href=(["\'])([^"\']+?\.md)(\?[^"\']*?)?(#[^"\']*)?\1', _repl, html_text)
+    return re.sub(
+        r'href=(["\'])([^"\']+?\.md)(\?[^"\']*?)?(#[^"\']*)?\1', _repl, html_text
+    )
 
 
 def auto_link_filenames(html_text, current_slug, slug_page_keys):
@@ -113,7 +115,7 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
 
     # Build a map of filename (without .md) -> output HTML file
     filename_map = {}
-    for slug, key in slug_page_keys.items():
+    for slug in slug_page_keys:
         filename = slug.rsplit("/", 1)[-1]
         if filename:
             filename_map[filename.lower()] = slug_output_name(slug)
@@ -126,7 +128,9 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
     filename_pattern = "|".join(escaped_filenames)
 
     # First, protect <pre><code> blocks from processing
-    pre_code_pattern = re.compile(r"(<pre><code[^>]*>.*?</code></pre>)", flags=re.DOTALL)
+    pre_code_pattern = re.compile(
+        r"(<pre><code[^>]*>.*?</code></pre>)", flags=re.DOTALL
+    )
     pre_code_blocks = []
 
     def _protect_pre_code(m):
@@ -166,12 +170,14 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
 
 def strip_code_refs_outside_code_blocks(html_text):
     """Remove code reference links (file.py:line) that are OUTSIDE <pre><code> blocks.
-    
-    Code references should only work inside code blocks. Any [text](file.py:123) 
+
+    Code references should only work inside code blocks. Any [text](file.py:123)
     links created by markdown outside code blocks are converted to plain text.
     """
     # Protect <pre><code> blocks
-    pre_code_pattern = re.compile(r"(<pre><code[^>]*>.*?</code></pre>)", flags=re.DOTALL)
+    pre_code_pattern = re.compile(
+        r"(<pre><code[^>]*>.*?</code></pre>)", flags=re.DOTALL
+    )
     pre_code_blocks = []
 
     def _protect(m):
@@ -184,16 +190,11 @@ def strip_code_refs_outside_code_blocks(html_text):
     # Pattern: href="something.py:123" or href='something.py:123'
     code_ref_link_pattern = re.compile(
         r'(<a\s+href=(["\'])([^"\']+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|sh|bash|zsh|fish|ps1|bat|cmd|sql|html|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt|rst|css|scss|sass|less|styl|vue|svelte|astro|mdx):\d+)["\'][^>]*>)(.*?)(</a>)',
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
 
     def _repl(m):
-        full_tag = m.group(1)
-        quote = m.group(2)
-        href = m.group(3)
         link_text = m.group(4)
-        closing = m.group(5)
-        # Replace with plain text (or span with class for styling)
         return f'<span class="code-reference-plain">{html.escape(link_text)}</span>'
 
     processed = code_ref_link_pattern.sub(_repl, protected)
@@ -274,7 +275,7 @@ def process_code_references_html(html_text, config):
     ref_counter = [0]  # Use list for mutable counter in nested functions
 
     # First, protect <pre><code> blocks
-    pre_code_pat = re.compile(r'(<pre><code[^>]*>[\s\S]*?</code></pre>)')
+    pre_code_pat = re.compile(r"(<pre><code[^>]*>[\s\S]*?</code></pre>)")
     pre_code_blocks = []
 
     def _protect(m):
@@ -286,15 +287,12 @@ def process_code_references_html(html_text, config):
     # Process code references OUTSIDE code blocks (regular <a> links)
     # Pattern: <a href="file.py:123">text</a>
     def _repl_outside(m):
-        full_tag = m.group(1)
-        quote = m.group(2)
         href = m.group(3)
         link_text = m.group(4)
-        closing = m.group(5)
 
         # Parse file path and line from href
-        if ':' in href:
-            file_path, line_str = href.rsplit(':', 1)
+        if ":" in href:
+            file_path, line_str = href.rsplit(":", 1)
             line = int(line_str) if line_str.isdigit() else None
         else:
             file_path = href
@@ -321,7 +319,9 @@ def process_code_references_html(html_text, config):
     def _restore_and_process(m):
         block_idx = int(m.group(1))
         block_html = pre_code_blocks[block_idx]
-        processed_block, block_refs = _process_code_refs_in_html_block(block_html, ref_counter[0])
+        processed_block, block_refs = _process_code_refs_in_html_block(
+            block_html, ref_counter[0]
+        )
         code_refs.extend(block_refs)
         ref_counter[0] += len(block_refs)
         return processed_block

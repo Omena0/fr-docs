@@ -8,12 +8,12 @@ Code references link to source files with line numbers. They work **both inside 
 
 ### Inline code reference
 
-[process_code_references()](fr_docs/markdown.py:139)
+[process_code_references_html()](fr_docs/markdown.py:265)
 
 ### In code block (also linked)
 
 ```python
-# This references a function: [process_code_references](fr_docs/markdown.py:139)
+# This references a function: [process_code_references_html](fr_docs/markdown.py:265)
 def hello():
     pass
 ```
@@ -39,6 +39,8 @@ These do NOT link inside code blocks:
 
 ## 3. Syntax Highlighting
 
+Syntax highlighting is powered by [fastpylight](https://github.com/AnswerDotAI/fastpylight) and Lumis tree-sitter grammars. Python, JavaScript, JSON, Bash, and other supported languages are highlighted at build time with a GitHub Dark theme.
+
 ### Python
 
 ```python
@@ -48,10 +50,12 @@ def fibonacci(n: int) -> int:
         return n
     return fibonacci(n - 1) + fibonacci(n - 2)
 
+
 # Decorator example
 @cache
 def cached_fib(n):
     return fibonacci(n)
+
 
 # Async example
 async def fetch_data():
@@ -151,8 +155,8 @@ Hover over any code block above to see the copy button in the top-right corner.
 
 Try searching for:
 
-- `process_code_references` (function)
-- `highlight_json` (function)  
+- `process_code_references_html` (function)
+- `highlight_code_blocks` (function)
 - `config.json` (page)
 
 Symbol results will show a "symbol" badge and clicking them opens the code panel.
@@ -167,7 +171,7 @@ Hover over these links to see previews:
 Hover over code references in code blocks to see code previews:
 
 ```python
-# Hover over this: [highlight_json](fr_docs/syntax.py:198)
+# Hover over this: [highlight_code_blocks](fr_docs/syntax.py:77)
 ```
 
 ## 7. Callout Boxes (Blockquotes)

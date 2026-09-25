@@ -9,6 +9,7 @@ description = "Fast static documentation generator with search, versioning, and 
 requires-python = ">=3.14"
 license = {file="LICENSE.md"}
 dependencies = [
+    "fastpylight>=0.1.18",
     "markdown",
     "zstandard",
 ]

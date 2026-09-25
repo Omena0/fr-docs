@@ -3,16 +3,24 @@ revision = 3
 requires-python = ">=3.14"
 
 [[package]]
+name = "fastpylight"
+version = "0.1.18"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/87/3a/8977783f6bfd2b0718912e3cb89fd0a175f1cc9491be09c537ea4d6e1599/fastpylight-0.1.18.tar.gz", hash = "sha256:efa244a2ebe7296684658db68c0ddcc97976701e1551861a1c6a1fec0857565a", size = 28945, upload-time = "2026-08-28T23:18:35.4Z" }
+
+[[package]]
 name = "fr-docs"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "fastpylight" },
     { name = "markdown" },
     { name = "zstandard" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "fastpylight", specifier = ">=0.1.18" },
     { name = "markdown" },
     { name = "zstandard" },
 ]

@@ -1,7 +1,6 @@
 """Initialize a new fr-docs documentation project."""
 
 import json
-import os
 import platform
 import shutil
 import subprocess
@@ -300,6 +299,7 @@ def create_uv_venv(docs_dir):
             capture_output=True,
             text=True,
             timeout=60,
+            check=False,
         )
         if result.returncode == 0:
             print(f"  ✓ Created virtual environment at {venv_path}")
