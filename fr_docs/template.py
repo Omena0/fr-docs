@@ -97,10 +97,19 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=N
     for section_name, pages in sidebar_config:
         key = _section_key(section_name)
         is_ext = section_name in ext_sections
+
+        # Auto-expand the section that contains the current page, and
+        # any section with only one page (so users can see its contents
+        # without clicking). If there's only one section total, expand
+        # it regardless.
+        contains_current = any(slug == current_slug for slug, _ in pages)
+        only_section = len(sidebar_config) == 1
+        collapsed = not (contains_current or only_section or len(pages) <= 1)
+
         parts.extend(
             (
                 '<div class="sidebar-section">',
-                f'  <div class="sidebar-heading collapsed" data-section="{key}">{section_name}</div>',
+                f'  <div class="sidebar-heading{" collapsed" if collapsed else ""}" data-section="{key}">{section_name}</div>',
                 '  <ul class="sidebar-links">',
             )
         )
