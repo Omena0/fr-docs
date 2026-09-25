@@ -5,14 +5,14 @@ Fr-docs is configured via a `config.json` file in your project root.
 ## Required Fields
 
 | Field | Type | Description |
-|-------|------|-------------|
+| ----- | ---- | ----------- |
 | `project_name` | string | Display name for the project |
 | `sidebar` | array | Navigation sidebar structure |
 
 ## Optional Fields
 
 | Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| ------- | ------ | --------- | ------------- |
 | `project_url` | string | `""` | Link to project repository |
 | `docs_dir` | string | `"."` | Root directory for docs |
 | `src_dir` | string | `"src"` | Source markdown directory (relative to docs_dir) |

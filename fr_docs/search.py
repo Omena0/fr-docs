@@ -35,12 +35,8 @@ def _parse_search_sections(body_md):
             if not table_header_seen:
                 continue
 
-            cols = [c.strip() for c in stripped.strip("|").split("|")]
-
-            if cols:
-                col = re.sub(r"[`*\[\]()]", "", cols[0]).strip()
-
-                if col:
+            if cols := [c.strip() for c in stripped.strip("|").split("|")]:
+                if col := re.sub(r"[`*\[\]()]", "", cols[0]).strip():
                     table_first_cols.append(col)
 
             continue
@@ -61,14 +57,11 @@ def _parse_search_sections(body_md):
         if stripped.startswith("#"):
             current_heading = stripped.lstrip("#").strip()
 
-        elif (
-            stripped
-            and not stripped.startswith("```")
-            and not stripped.startswith("---")
-        ):
-            clean = re.sub(r"[`*\[\]()]", "", stripped)
-
-            if clean:
+        elif (stripped
+                and not stripped.startswith("```")
+                and not stripped.startswith("---")
+            ):
+            if clean := re.sub(r"[`*\[\]()]", "", stripped):
                 sections.append({"heading": current_heading, "text": clean})
 
     if table_first_cols:

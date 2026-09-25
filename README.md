@@ -1,16 +1,46 @@
-
 # Fr-docs
 
-Generate fully features, modern documentation pages from markdown for GitHub pages.
+Generate fully featured, modern documentation pages from markdown for GitHub pages and static hosting.
 
 [![Lint](https://github.com/Omena0/fr-docs/actions/workflows/lint.yml/badge.svg)](https://github.com/Omena0/fr-docs/actions/workflows/lint.yml)
 [![Docs](https://github.com/Omena0/fr-docs/actions/workflows/pages.yml/badge.svg)](https://github.com/Omena0/fr-docs/actions/workflows/pages.yml)
 [![PyPi](https://github.com/Omena0/fr-docs/actions/workflows/publish.yml/badge.svg)](https://github.com/Omena0/fr-docs/actions/workflows/publish.yml)
 [![CodeQL](https://github.com/Omena0/fr-docs/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Omena0/fr-docs/actions/workflows/github-code-scanning/codeql)
 
-## [Documentation](https://omena0.dev/fr-docs/)
+## Quick Links
 
-## Projects that use fr-docs
+- [Getting Started](docs/src/getting_started/index.md)
+- [Installation Guide](docs/src/getting_started/installation.md)
+- [Quickstart Tutorial](docs/src/getting_started/quickstart.md)
+- [Configuration Reference](docs/src/reference/config_format.md)
+- [Usage Guide](docs/src/usage/build.md)
+- [Search Features](docs/src/usage/search.md)
+- [Versioning System](docs/src/usage/versioning.md)
+- [Deployment Guide](docs/src/usage/deploy.md)
+- [API Documentation](docs/src/reference/api.md)
+
+## Overview
+
+Fr-docs is a generic, configurable documentation builder for Python projects. It converts Markdown source files into a searchable, optimized static HTML site with zero-config setup.
+
+### Key Features
+
+- **Config-driven**: All settings defined in `config.json`
+- **Zero-config setup**: Works out of the box with sensible defaults
+- **Search**: Full-text search with Zstandard-compressed index
+- **Versioning**: Semantic versioning from commit messages (`4D - fix bug` → `4.4.0`)
+- **Optimized**: HTML minification, critical CSS/JS inlining, Zstd compression
+- **Multi-environment**: Different configs for production, staging, development
+- **Parallel builds**: Threaded page generation for faster builds
+- **Git integration**: Automatic metadata extraction from git commits
+
+### Projects that use fr-docs
 
 - [Fr-docs](https://omena0.dev/fr-docs/)
 - [PyJavaBridge](https://omena0.dev/PyJavaBridge)
+
+### Community
+
+- [GitHub Repository](https://github.com/Omena0/fr-docs)
+- [Discussions](https://github.com/Omena0/fr-docs/discussions)
+- [Issues](https://github.com/Omena0/fr-docs/issues)

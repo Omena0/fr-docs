@@ -7,36 +7,70 @@
 
 ## Install from PyPI
 
+### Standard installation
+
 ```bash
 pip install fr-docs
 ```
 
-## Install from Source
+### Install in a virtual environment
 
 ```bash
-git clone https://github.com/your-org/fr-docs.git
+uv venv
+uv pip install fr-docs
+```
+
+### Install a specific version
+
+```bash
+pip install fr-docs==1.0.0
+```
+
+## Install from Source
+
+### Clone and install
+
+```bash
+git clone https://github.com/Omena0/fr-docs.git
 cd fr-docs
-pip install --no-deps -e .
+pip install -e .
 ```
 
 ## Project Setup
 
-1. Create a `config.json` in your project root
-2. Add your documentation markdown files in `src/`
+1. Create a `config.json` in `docs/`
+2. Add your documentation markdown files in `docs/src/`
 3. Run `fr-docs build`
+4. Serve files in `docs/site`
 
-## Dependencies
+### Project structure example
 
-Install build dependencies:
-
-```bash
-pip install markdown zstandard
+```tree
+my-project/
+├── my_module/
+├── docs/
+│   ├── src/
+│   │   └── index.md
+│   └── config.json
+└── pyproject.toml
 ```
 
-Or install as a package dependency in your `pyproject.toml`:
+## Verify Installation
 
-```toml
-dependencies = [
-    "fr-docs",
-]
+```bash
+fr-docs --help
+```
+
+Expected output should show the available commands and options.
+
+## Upgrade
+
+```bash
+pip install --upgrade fr-docs
+```
+
+## Uninstall
+
+```bash
+pip uninstall fr-docs
 ```

@@ -4,26 +4,11 @@
   "docs_dir": ".",
   "site_path_prefix": "/fr-docs",
   "sidebar": [
-    ["Introduction", [
+    ["Getting started", [
       ["getting_started/index", "Home"],
       ["getting_started/installation", "Installation"],
       ["getting_started/quickstart", "Quickstart"],
       ["getting_started/configuration", "Configuration"]
-    ]],
-    ["Usage", [
-      ["usage/build", "Build"],
-      ["usage/deploy", "Deploy"],
-      ["usage/search", "Search"],
-      ["usage/versioning", "Versioning"]
-    ]],
-    ["Reference", [
-      ["reference/config_format", "Config Format"],
-      ["reference/version_format", "Version Format"],
-      ["reference/api", "API"]
-    ]],
-    ["Internals", [
-      ["internals/architecture", "Architecture"],
-      ["internals/caching", "Caching"]
     ]]
   ],
   "build": {
