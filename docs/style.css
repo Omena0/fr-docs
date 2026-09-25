@@ -983,15 +983,37 @@ pre code .hl-variable-sql { color: #79c0ff; }
 
 /* ===== Callout boxes ===== */
 .callout {
+  display: flex;
+  gap: 12px;
   padding: 16px 20px;
   border-radius: var(--radius-sm);
   margin: 16px 0;
   font-size: .9rem;
   border-left: 4px solid;
 }
-.callout-info  { background: rgba(56,139,253,.1); border-left-color: #388bfd; }
-.callout-warn  { background: rgba(210,153,34,.1); border-left-color: #d29922; }
-.callout-tip   { background: rgba(63,185,80,.1); border-left-color: #3fb950; }
+.callout-content { min-width: 0; }
+.callout-icon {
+  display: inline-flex;
+  flex: 0 0 20px;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 1px;
+}
+.callout-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.callout-note { color: #58a6ff; background: rgba(88,166,255,.1); border-left-color: #58a6ff; }
+.callout-info { color: #388bfd; background: rgba(56,139,253,.1); border-left-color: #388bfd; }
+.callout-tip { color: #3fb950; background: rgba(63,185,80,.1); border-left-color: #3fb950; }
+.callout-warning { color: #d29922; background: rgba(210,153,34,.1); border-left-color: #d29922; }
+.callout-error { color: #f85149; background: rgba(248,81,73,.1); border-left-color: #f85149; }
+.callout-critical { color: #db61a2; background: rgba(219,97,162,.12); border-left-color: #db61a2; }
 
 .callout strong { display: block; margin-bottom: 4px; }
 
@@ -1320,6 +1342,7 @@ h1 .ext-tag {
   background: var(--primary-soft);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
+  margin-right: 25px;
 }
 
 .link-preview-tooltip .preview-description {
@@ -1340,6 +1363,7 @@ h1 .ext-tag {
   position: relative;
   display: block;
   padding: 1px 8px;
+  margin-right: 25px;
   white-space: pre;
 }
 

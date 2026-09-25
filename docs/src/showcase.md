@@ -22,7 +22,7 @@ Ranges highlight the first and last selected lines fully; intervening lines only
 
 ### Inline and code-block references
 
-[process_code_references_html()](fr_docs/markdown.py:265)
+[process_code_references_html()](fr_docs/markdown.py:process_code_references_html)
 
 ```python
 # This references a function: [process_code_references_html](fr_docs/markdown.py:process_code_references_html)
@@ -161,15 +161,32 @@ echo "All builds completed successfully!"
 
 Hover over any code block above to see the copy button in the top-right corner.
 
-## 5. Search with Symbol Results
+## 5. Search with Symbol and File Results
+
+Search can include pages, page titles, headings, content, symbols, and source filenames. Configure these under `features.search.include`:
+
+```json
+"search": {
+  "enabled": true,
+  "include": {
+    "pages": true,
+    "titles": true,
+    "headings": true,
+    "content": true,
+    "symbols": true,
+    "files": true
+  }
+}
+```
 
 Try searching for:
 
 - `process_code_references_html` (function)
 - `highlight_code_blocks` (function)
-- `config.json` (page)
+- `config.json` (page or file)
+- `syntax.py` (file)
 
-Symbol results will show a "symbol" badge and clicking them opens the code panel.
+Symbol and file results open a scrollable full-file code panel at the matching location.
 
 ## 6. Link Hover Previews
 
@@ -181,14 +198,17 @@ Hover over these links to see previews:
 Hover over code references in code blocks to see code previews:
 
 ```python
-# Hover over this: [highlight_code_blocks](fr_docs/syntax.py:77)
+# Hover over this: [highlight_code_blocks](fr_docs/syntax.py:highlight_code_blocks)
 ```
 
 ## 7. Callout Boxes (Blockquotes)
 
-> **Note** This is an info callout box.
+> **Note** This is a note callout box.
+> **Info** This is an info callout box.
 > **Tip** This is a tip callout box.
 > **Warning** This is a warning callout box.
+> **Error** This is an error callout box.
+> **Critical** This is a critical callout box.
 
 ## 8. Extension Tags
 
@@ -201,7 +221,7 @@ This is an [ext] feature.
 | Code References | ✅ | File, line, range, and function links |
 | Filename Links | ✅ | Auto-link inline filenames |
 | Syntax Highlighting | ✅ | Python, JS, JSON, YAML, Bash |
-| Search | ✅ | Full-text + symbols |
+| Search | ✅ | Configurable pages, symbols, and files |
 | Versioning | ✅ | From git commits |
 | Link Previews | ✅ | Hover previews |
 

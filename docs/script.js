@@ -279,6 +279,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return fzstdPromise;
   }
 
+  async function loadCompressedJson(filename, fallback = null) {
+    if (location.protocol === 'file:') return fallback;
+    if (!await ensureFzstd()) return fallback;
+    try {
+      const response = await fetch(toSiteHref(filename), { cache: 'force-cache' });
+      if (!response.ok) return fallback;
+      const compressed = new Uint8Array(await response.arrayBuffer());
+      return JSON.parse(new TextDecoder().decode(fzstd.decompress(compressed)));
+    } catch (e) {
+      return fallback;
+    }
+  }
+
   function loadInlineSearchFallback() {
     const el = document.getElementById('zstd-data');
     if (!el || !el.textContent.trim()) return false;
@@ -306,7 +319,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
       }
 
-      if (loadInlineSearchFallback()) return true;
+      if (loadInlineSearchFallback()) {
+        await Promise.all([loadSymbolIndex(), loadFileIndex()]);
+        return true;
+      }
 
       if (location.protocol === 'file:') {
         return false;
@@ -320,8 +336,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const json = new TextDecoder().decode(decompressed);
         searchIndex = JSON.parse(json);
 
-        // Also load symbol index
-        await loadSymbolIndex();
+        // Also load source indexes used by search
+        await Promise.all([loadSymbolIndex(), loadFileIndex()]);
 
         return emitSearchReady();
       } catch (e) {
@@ -353,22 +369,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
   searchIndex = null;
   let symbolIndex = null;
+  let fileIndex = null;
+  const searchConfig = (() => {
+    const el = document.getElementById('search-config');
+    try {
+      return el ? JSON.parse(el.textContent) : {};
+    } catch (e) {
+      return {};
+    }
+  })();
+  const searchIncludes = Object.assign({
+    pages: true,
+    titles: true,
+    headings: true,
+    content: true,
+    symbols: true,
+    files: true
+  }, searchConfig);
 
   // ── Load symbol index ──────────────────────────────────────────
   async function loadSymbolIndex() {
     if (symbolIndex !== null) return symbolIndex;
     try {
-      const response = await fetch(toSiteHref('symbol_index.json'), { cache: 'force-cache' });
-      if (response.ok) {
-        symbolIndex = await response.json();
-      } else {
-        symbolIndex = [];
-      }
+      symbolIndex = await loadCompressedJson('symbol_index.zst', []);
     } catch (e) {
       console.warn('Failed to load symbol index:', e);
       symbolIndex = [];
     }
     return symbolIndex;
+  }
+
+  async function loadFileIndex() {
+    if (fileIndex !== null) return fileIndex;
+    try {
+      fileIndex = await loadCompressedJson('file_index.zst', []);
+    } catch (e) {
+      fileIndex = [];
+    }
+    return fileIndex;
   }
 
   // ── Header full-text search ─────────────────────────────────
@@ -387,49 +425,45 @@ document.addEventListener('DOMContentLoaded', () => {
     function scorePage(page) {
       let score = 0;
       const title = (page.title || '').toLowerCase();
-      if (title === q) score += 200;
-      else if (title.includes(q)) score += 120 - Math.min(100, title.indexOf(q));
+      if (searchIncludes.titles) {
+        if (title === q) score += 200;
+        else if (title.includes(q)) score += 120 - Math.min(100, title.indexOf(q));
+      }
 
       for (const sec of page.sections || []) {
         const heading = (sec.heading || '').toLowerCase();
         const text = (sec.text || '').toLowerCase();
-        if (heading.includes(q)) score += 40;
-        if (text.includes(q)) score += 20;
+        if (searchIncludes.headings && heading.includes(q)) score += 40;
+        if (searchIncludes.content && text.includes(q)) score += 20;
         for (const t of tokens) {
-          if (heading.includes(t)) score += 8;
-          if (text.includes(t)) score += 4;
+          if (searchIncludes.titles && title.includes(t)) score += 2;
+          if (searchIncludes.headings && heading.includes(t)) score += 8;
+          if (searchIncludes.content && text.includes(t)) score += 4;
         }
       }
-
-      // token coverage bonus
-      let cover = 0;
-      for (const t of tokens) {
-        if (title.includes(t)) cover += 2;
-      }
-      score += cover;
       return score;
     }
 
     for (const page of searchIndex) {
-      const s = scorePage(page);
-      if (s > 0) {
-        // pick best matching section for snippet
-        let bestSec = null;
-        for (const sec of page.sections || []) {
-          for (const t of tokens) {
-            if ((sec.text || '').toLowerCase().includes(t) || (sec.heading || '').toLowerCase().includes(t)) {
-              bestSec = sec; break;
+      if (searchIncludes.pages) {
+        const s = scorePage(page);
+        if (s > 0) {
+          let bestSec = null;
+          for (const sec of page.sections || []) {
+            for (const t of tokens) {
+              if ((sec.text || '').toLowerCase().includes(t) || (sec.heading || '').toLowerCase().includes(t)) {
+                bestSec = sec; break;
+              }
             }
+            if (bestSec) break;
           }
-          if (bestSec) break;
+          hits.push({ url: page.url, title: page.title, text: bestSec ? bestSec.text : '', score: s, type: 'page' });
         }
-        const hit = { url: page.url, title: page.title, text: bestSec ? bestSec.text : '', score: s, type: 'page' };
-        hits.push(hit);
       }
     }
 
     // Also search symbols
-    if (symbolIndex && symbolIndex.length > 0) {
+    if (searchIncludes.symbols && symbolIndex && symbolIndex.length > 0) {
       const qLower = q.toLowerCase();
       for (const sym of symbolIndex) {
         let score = 0;
@@ -461,12 +495,37 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    if (searchIncludes.files && fileIndex && fileIndex.length > 0) {
+      for (const file of fileIndex) {
+        const name = (file.name || '').toLowerCase();
+        const path = (file.file || '').toLowerCase();
+        let score = 0;
+        if (name === q) score += 140;
+        else if (name.includes(q)) score += 70 - Math.min(40, name.indexOf(q));
+        else {
+          for (const token of tokens) {
+            if (name.includes(token)) score += 8;
+            if (path.includes(token)) score += 4;
+          }
+        }
+        if (score > 0) {
+          hits.push({
+            url: `#coderef:${file.file}:1`,
+            title: file.name,
+            text: file.file,
+            score,
+            type: 'file'
+          });
+        }
+      }
+    }
+
     // Sort and dedupe
     hits.sort((a, b) => b.score - a.score);
     const seen = new Set();
     const unique = [];
     for (const h of hits) {
-      const baseUrl = h.url.split('#')[0];
+      const baseUrl = h.url.includes('#') ? h.url : h.url.split('#')[0];
       if (!seen.has(baseUrl) && unique.length < 12) {
         seen.add(baseUrl);
         unique.push(h);
@@ -480,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
     searchResults.innerHTML = unique.map(h => {
       const snippet = h.text ? h.text.substring(0, 100) : '';
       const heading = h.heading ? ` › ${h.heading}` : '';
-      const typeBadge = h.type === 'symbol' ? '<span class="ext-tag" style="margin-left:6px;background:var(--primary-soft);color:var(--primary)">symbol</span>' : '';
+      const typeBadge = h.type === 'symbol' ? '<span class="ext-tag" style="margin-left:6px;background:var(--primary-soft);color:var(--primary)">symbol</span>' : h.type === 'file' ? '<span class="ext-tag" style="margin-left:6px;background:var(--primary-soft);color:var(--primary)">file</span>' : '';
       const fmtTitle = (h.title + heading + typeBadge).replace(/\[ext\]/g, '<span class="ext-tag">ext</span>');
       const href = addVerToHref(h.url);
       return `<a class="search-hit" href="${href}"><strong>${fmtTitle}</strong><span>${snippet}</span></a>`;
@@ -652,14 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return null;
     }
 
-    // Load git metadata from a shared JSON asset.
-    try {
-      const r = await fetch(toSiteHref('git_meta.json'), { cache: 'no-store' });
-      if (r && r.ok) return await r.json();
-    } catch (e) {
-      // ignore network errors
-    }
-    return null;
+    return await loadCompressedJson('git_meta.zst', null);
   }
 
   function resolveVerToCommit(ver, meta) {
@@ -973,12 +1025,12 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadSourceFiles() {
     if (sourceFiles !== null) return sourceFiles;
     try {
-      const [filesResponse, highlightsResponse] = await Promise.all([
-        fetch(toSiteHref('source_files.json'), { cache: 'force-cache' }),
-        fetch(toSiteHref('source_highlights.json'), { cache: 'force-cache' })
+      const [files, highlights] = await Promise.all([
+        loadCompressedJson('source_files.zst', {}),
+        loadCompressedJson('source_highlights.zst', {})
       ]);
-      sourceFiles = filesResponse.ok ? await filesResponse.json() : {};
-      sourceHighlights = highlightsResponse.ok ? await highlightsResponse.json() : {};
+      sourceFiles = files || {};
+      sourceHighlights = highlights || {};
     } catch (e) {
       console.warn('Failed to load source files:', e);
       sourceFiles = {};
@@ -1041,6 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     }
+    while (end > definition && !lines[end].trim()) end--;
     return { start: start + 1, end: end + 1 };
   }
 
@@ -1081,6 +1134,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderReferenceLines(ref, fileContent, fullFile = false) {
+    if (ref.function && !fullFile) {
+      const range = findFunctionRange(fileContent, ref.function);
+      if (range) {
+        let functionLines = '';
+        for (let i = range.start; i <= range.end; i++) {
+          const boundary = i === range.start || i === range.end;
+          functionLines += `<div class="code-line${boundary ? ' highlight-target' : ''}" data-line="${i}"><span class="line-number">${i}</span>${highlightedSourceLine(ref.file, i)}</div>`;
+        }
+        return {
+          start: range.start,
+          end: range.end,
+          selectedStart: range.start,
+          selectedEnd: range.end,
+          range: true,
+          functionName: ref.function,
+          highlightedLines: `<div class="code-line code-line-blank"><span class="line-number"></span>&nbsp;</div>${functionLines}<div class="code-line code-line-blank"><span class="line-number"></span>&nbsp;</div>`
+        };
+      }
+    }
     const view = referenceView(ref, fileContent);
     if (fullFile) {
       view.start = 1;
@@ -1249,6 +1321,20 @@ document.addEventListener('DOMContentLoaded', () => {
   let linkPreviewCache = new Map();
   let previewTooltip = null;
   let previewHideTimeout = null;
+  const pagePreloadCache = new Set();
+
+  function preloadPageOnHover(href) {
+    if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    const key = new URL(href, location.href).href;
+    if (pagePreloadCache.has(key)) return;
+    pagePreloadCache.add(key);
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.href = key;
+    link.as = 'document';
+    document.head.appendChild(link);
+    void fetch(key, { cache: 'force-cache', priority: 'high' }).catch(() => {});
+  }
 
 function createPreviewTooltip(isCode) {
     if (previewTooltip) return previewTooltip;
@@ -1394,6 +1480,9 @@ function createPreviewTooltip(isCode) {
       let hoverTimeout = null;
 
       link.addEventListener('mouseenter', async (e) => {
+        if (!isCodeRef && !isSearchCodeRef && !href.startsWith('#')) {
+          preloadPageOnHover(href);
+        }
         hoverTimeout = setTimeout(async () => {
           if (isCodeRef) {
             const refId = link.dataset.coderefId;

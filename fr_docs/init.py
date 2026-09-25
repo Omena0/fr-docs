@@ -32,7 +32,7 @@ DEFAULT_CONFIG = {
         "optimize_html": True,
         "zstd_level": 22,
         "search_index_filename": "search_index.zst",
-        "git_meta_filename": "git_meta.json",
+        "git_meta_filename": "git_meta.zst",
     },
     "versioning": {
         "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",

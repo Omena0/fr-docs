@@ -29,6 +29,7 @@ from .markdown import (
     process_code_references_html,
     rewrite_md_links,
 )
+from .search import search_include_config
 from .slug import slug_output_name
 from .syntax import (
     URL_ATTR_RE,
@@ -332,6 +333,7 @@ def build_page(slug, config, slug_page_keys):
             "sidebar": sidebar_html,
             "body": body_html,
             "code_refs_json": json.dumps(code_refs),
+            "search_config_json": json.dumps(search_include_config(config)),
         }
     )
 

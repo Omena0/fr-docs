@@ -416,6 +416,25 @@ def _compute_backlinks_and_related(search_index, config):
         item["related"] = rel[:12]
 
 
+def search_include_config(config):
+    defaults = {
+        "pages": True,
+        "titles": True,
+        "headings": True,
+        "content": True,
+        "symbols": True,
+        "files": True,
+    }
+    value = config.get("features", {}).get("search", True)
+    if isinstance(value, dict):
+        value = value.get("include", value)
+    if isinstance(value, dict):
+        return {key: bool(value.get(key, default)) for key, default in defaults.items()}
+    if isinstance(value, list):
+        return {key: key in value for key in defaults}
+    return defaults
+
+
 def build_search_index(slugs, config):
     """Build the search index from markdown sources."""
     search_index = []
@@ -460,7 +479,10 @@ def build_search_index(slugs, config):
             config["search_map"][title] = f"{source_slug}.md"
 
     # Build symbol index from source files if code_references is enabled
-    if feature_enabled(config, "code_references") and config.get("_source_files"):
+    if (
+        feature_enabled(config, "code_references")
+        or search_include_config(config)["symbols"]
+    ) and config.get("_source_files"):
         symbol_index = build_symbol_index(config["_source_files"], config)
         config["_symbol_index"] = symbol_index
 

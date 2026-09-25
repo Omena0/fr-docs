@@ -25,15 +25,23 @@ from .config_accessors import (
     workers,
     zstd_level,
 )
-from .git import build_version_options, collect_git_metadata, write_git_metadata
+from .git import build_version_options, collect_git_metadata
 from .html_pipeline import build_page
-from .search import build_search_index
+from .search import build_search_index, search_include_config
 from .slug import (
     build_slug_page_keys,
     slug_output_name,
 )
 from .syntax import highlight_source_lines
 from .utils import normalized_site_prefix
+
+
+def _write_zstd_json(config, filename, value):
+    raw = json.dumps(value, separators=(",", ":")).encode("utf-8")
+    compressed = zstandard.ZstdCompressor(level=zstd_level(config)).compress(raw)
+    path = Path(config["_out_dir"]) / filename
+    path.write_bytes(compressed)
+    return len(raw), len(compressed)
 
 
 def collect_source_files(config):
@@ -183,7 +191,11 @@ def main(argv=None):
     print()
 
     # Collect source files for code references
-    if feature_enabled(config, "code_references"):
+    search_includes = search_include_config(config)
+    if feature_enabled(config, "code_references") or (
+        feature_enabled(config, "search")
+        and (search_includes["files"] or search_includes["symbols"])
+    ):
         print("📂 Collecting source files for code references...")
         source_files = collect_source_files(config)
         config["_source_files"] = source_files
@@ -192,6 +204,14 @@ def main(argv=None):
     # Copy static assets
     docs_path = Path(config["_docs_dir"])
     os.makedirs(Path(config["_out_dir"]), exist_ok=True)
+    for legacy_name in (
+        "file_index.json",
+        "git_meta.json",
+        "source_files.json",
+        "source_highlights.json",
+        "symbol_index.json",
+    ):
+        Path(config["_out_dir"], legacy_name).unlink(missing_ok=True)
     for name in ("favicon.svg", "script.js", "style.css"):
         src = docs_path / name
         dst = Path(config["_out_dir"]) / name
@@ -250,35 +270,57 @@ def main(argv=None):
     )
 
     # Save source files for code references
-    if feature_enabled(config, "code_references") and config.get("_source_files"):
-        source_files_path = os.path.join(config["_out_dir"], "source_files.json")
-        with open(source_files_path, "w", encoding="utf-8") as f:
-            json.dump(config["_source_files"], f, separators=(",", ":"))
-        print(f"   Source files: {len(config['_source_files'])} files saved")
+    if (
+        feature_enabled(config, "code_references")
+        or (search_includes["files"] or search_includes["symbols"])
+    ) and config.get("_source_files"):
+        raw_size, compressed_size = _write_zstd_json(
+            config, "source_files.zst", config["_source_files"]
+        )
+        print(
+            f"   Source files: {len(config['_source_files'])} files saved "
+            f"({raw_size:,} bytes → {compressed_size:,} zstd)"
+        )
 
         source_highlights = {
             path: highlight_source_lines(content, path)
             for path, content in config["_source_files"].items()
         }
-        with open(
-            os.path.join(config["_out_dir"], "source_highlights.json"),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(source_highlights, f, separators=(",", ":"))
+        raw_size, compressed_size = _write_zstd_json(
+            config, "source_highlights.zst", source_highlights
+        )
+        print(
+            f"   Source highlights: {len(source_highlights)} files saved "
+            f"({raw_size:,} bytes → {compressed_size:,} zstd)"
+        )
 
-        print(f"   Source highlights: {len(source_highlights)} files saved")
+    if search_includes["files"] and config.get("_source_files"):
+        file_index = [
+            {"file": path, "name": Path(path).name}
+            for path in sorted(config["_source_files"])
+        ]
+        raw_size, compressed_size = _write_zstd_json(
+            config, "file_index.zst", file_index
+        )
+        print(
+            f"   File index: {len(file_index)} files saved "
+            f"({raw_size:,} bytes → {compressed_size:,} zstd)"
+        )
 
     # Save symbol index for search
-    if feature_enabled(config, "code_references") and config.get("_symbol_index"):
-        symbol_index_path = os.path.join(config["_out_dir"], "symbol_index.json")
-        with open(symbol_index_path, "w", encoding="utf-8") as f:
-            json.dump(config["_symbol_index"], f, separators=(",", ":"))
-        print(f"   Symbol index: {len(config['_symbol_index'])} symbols saved")
+    if search_includes["symbols"] and config.get("_symbol_index"):
+        raw_size, compressed_size = _write_zstd_json(
+            config, "symbol_index.zst", config["_symbol_index"]
+        )
+        print(
+            f"   Symbol index: {len(config['_symbol_index'])} symbols saved "
+            f"({raw_size:,} bytes → {compressed_size:,} zstd)"
+        )
 
     # Git metadata
     git_meta = collect_git_metadata(config)
-    write_git_metadata(git_meta, config)
+    raw_size, compressed_size = _write_zstd_json(config, "git_meta.zst", git_meta)
+    print(f"   Git metadata: {raw_size:,} bytes → {compressed_size:,} zstd")
 
     # Build version options
     build_version_options(git_meta, config)

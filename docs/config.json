@@ -18,7 +18,7 @@
     "optimize_html": true,
     "zstd_level": 22,
     "search_index_filename": "search_index.zst",
-    "git_meta_filename": "git_meta.json"
+    "git_meta_filename": "git_meta.zst"
   },
   "versioning": {
     "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
@@ -29,7 +29,17 @@
     "related": true,
     "auto_link": true,
     "versioning": true,
-    "search": true,
+    "search": {
+      "enabled": true,
+      "include": {
+        "pages": true,
+        "titles": true,
+        "headings": true,
+        "content": true,
+        "symbols": true,
+        "files": true
+      }
+    },
     "code_references": true,
     "link_preview": true,
     "code_highlighting": true,

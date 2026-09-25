@@ -33,7 +33,10 @@ def features_config(config):
 
 
 def feature_enabled(config, feature_name):
-    return features_config(config).get(feature_name, True)
+    value = features_config(config).get(feature_name, True)
+    if isinstance(value, dict):
+        return value.get("enabled", True)
+    return bool(value)
 
 
 def src_dir(config):

@@ -73,6 +73,7 @@ TEMPLATE = """\
 
     {search_index_inline}
     <script id="code-refs-data" type="application/json">{code_refs_json}</script>
+    <script id="search-config" type="application/json">{search_config_json}</script>
     <script src="{site_prefix}script.js" defer></script>
 </body>
 </html>
