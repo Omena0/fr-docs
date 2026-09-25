@@ -31,48 +31,7 @@ jobs:
       - name: Extract version from commit message
         id: version
         run: |
-          COMMIT_MSG=$(git log -1 --pretty=%B)
-          if [[ "$COMMIT_MSG" =~ ^([0-9]+[A-Za-z])\ - ]]; then
-            CODE="${BASH_REMATCH[1]}"
-            MAJOR="${CODE:0:1}"
-            MINOR_LETTER="${CODE:1:1}"
-            PATCH=0
-            # Convert letter to number: A=1, B=2, C=3, D=4, ...
-            MINOR_LETTER=$(echo "$MINOR_LETTER" | tr '[:upper:]' '[:lower:]')
-            MINOR=$(printf "%d" "'$MINOR_LETTER")
-            MINOR=$((MINOR - 96))  # 'a' is 97, so 97-96=1
-            SEMVER="${MAJOR}.${MINOR}.${PATCH}"
-            echo "version=$SEMVER" >> $GITHUB_OUTPUT
-            echo "release_title=$CODE" >> $GITHUB_OUTPUT
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            # Manual build: bump patch from last published version
-            LAST_TAG=$(git tag --list '[0-9]*[A-Za-z]*' --sort=-creatordate | head -1)
-            if [ -n "$LAST_TAG" ]; then
-              # Convert last tag to semver and bump patch
-              LAST_MAJOR="${LAST_TAG:0:1}"
-              LAST_MINOR_LETTER="${LAST_TAG:1:1}"
-              LAST_MINOR_LETTER=$(echo "$LAST_MINOR_LETTER" | tr '[:upper:]' '[:lower:]')
-              LAST_PATCH=0
-              LAST_MINOR=$(printf "%d" "'$LAST_MINOR_LETTER")
-              LAST_MINOR=$((LAST_MINOR - 96))
-              LAST_SEMVER="${LAST_MAJOR}.${LAST_MINOR}.${LAST_PATCH}"
-              # Bump patch
-              NEW_PATCH=$((LAST_PATCH + 1))
-              SEMVER="${LAST_MAJOR}.${LAST_MINOR}.${NEW_PATCH}"
-              echo "version=$SEMVER" >> $GITHUB_OUTPUT
-              echo "release_title=${LAST_MAJOR}${LAST_MINOR_LETTER}${NEW_PATCH}" >> $GITHUB_OUTPUT
-              echo "should_publish=true" >> $GITHUB_OUTPUT
-            else
-              # No previous tags, start at 0.1.0
-              echo "version=0.1.0" >> $GITHUB_OUTPUT
-              echo "release_title=0A" >> $GITHUB_OUTPUT
-              echo "should_publish=true" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-            echo "Skipping publish — no version prefix in commit message"
-          fi
+          python scripts/derive_version.py "${{ github.event_name }}" >> $GITHUB_OUTPUT
 
       - name: Update pyproject.toml version
         if: steps.version.outputs.should_publish == 'true'
