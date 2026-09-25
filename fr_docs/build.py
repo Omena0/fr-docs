@@ -69,7 +69,9 @@ def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
             str(dst),
         ]
         cmd = [c for c in cmd if c]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False, cwd=str(repo_root))
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, check=False, cwd=str(repo_root)
+        )
         if result.returncode != 0 or not dst.exists() or dst.stat().st_size == 0:
             print(f"  ! minify failed for {name}, copying raw: {result.stderr[-300:]}")
             shutil.copyfile(src, dst)
@@ -95,7 +97,9 @@ def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
             str(wrapper),
         ]
         cmd = [c for c in cmd if c]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False, cwd=str(repo_root))
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, check=False, cwd=str(repo_root)
+        )
         if result.returncode == 0 and min_out.exists():
             out = min_out.read_text(encoding="utf-8")
             m = re.search(r"<style>([\s\S]*)</style>", out)
