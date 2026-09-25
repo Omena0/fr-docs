@@ -113,7 +113,7 @@ def main() -> int:
   font-family: '{family}';
   font-style: {style};
   font-weight: {weight};
-  font-display: {display};
+  font-display: optional;
   src: url('fonts/{fname}') format('{fmt}');
 }}"""
         )

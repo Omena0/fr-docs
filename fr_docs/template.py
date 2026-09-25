@@ -18,7 +18,6 @@ TEMPLATE = """\
   <meta name="theme-color" content="#6366f1">
   <meta name="color-scheme" content="dark">
   <link rel="icon" href="{site_prefix}favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="{site_prefix}fonts.css">
   <link rel="stylesheet" href="{site_prefix}style.css">
 </head>
 <body>
@@ -73,6 +72,7 @@ TEMPLATE = """\
     <script id="code-refs-data" type="application/json">{code_refs_json}</script>
     <script id="search-config" type="application/json">{search_config_json}</script>
     <script src="{site_prefix}script.js" defer></script>
+    <link rel="stylesheet" href="{site_prefix}fonts.css">
 </body>
 </html>
 """
