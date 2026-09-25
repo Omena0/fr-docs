@@ -1,8 +1,8 @@
 """Entry point for fr-docs CLI.
 
 Usage:
-    python -m fr_docs build [--production] [--config CONFIG]
-    fr-docs build [--production] [--config CONFIG]
+    python -m fr_docs build [--production] [--symlink] [--config CONFIG]
+    fr-docs build [--production] [--symlink] [--config CONFIG]
     python -m fr_docs init [--dir DIR]
     fr-docs init [--dir DIR]
 """
@@ -28,6 +28,14 @@ def main():
         help="Rewrite internal links to site-root absolute paths for deployed docs.",
     )
     build_parser.add_argument(
+        "--symlink",
+        action="store_true",
+        help="Create a {site_prefix}/ symlink dir under site/ so a local "
+        "production build can be opened in a browser. Off by default: in "
+        "CI the whole docs/site/ tree is deployed as-is, and a nested "
+        "fr-docs/ symlink folder would show up as omena0.dev/fr-docs/fr-docs/.",
+    )
+    build_parser.add_argument(
         "--config",
         help="Path to the configuration JSON file.",
     )
@@ -51,6 +59,8 @@ def main():
         build_argv = []
         if args.production:
             build_argv.append("--production")
+        if args.symlink:
+            build_argv.append("--symlink")
         if args.config:
             build_argv.extend(["--config", args.config])
         build_main(build_argv)
@@ -60,6 +70,7 @@ def main():
         # Default to build for backwards compatibility
         if len(sys.argv) > 1 and sys.argv[1] in (
             "--production",
+            "--symlink",
             "--config",
             "--help",
             "-h",
