@@ -46,14 +46,16 @@
   --radius-sm: 6px;
 }
 
-html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px); }
-body {
-  font-family: var(--font-sans);
-  color: var(--text);
-  background: var(--bg);
-  line-height: 1.7;
-  -webkit-font-smoothing: antialiased;
-}
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px); text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--font-sans);
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
 
 /* ===== Header ===== */
 .site-header {
