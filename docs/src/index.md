@@ -12,10 +12,10 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 
 ## Getting Started in 5 Minutes
 
-1. Install fr-docs: `pip install fr-docs`
+1. Install fr-docs: c`pip install fr-docs`
 2. Create config.json with project settings
 3. Add markdown files to `docs/src/`
-4. Build: `fr-docs build`
+4. Build: c`fr-docs build`
 5. Deploy: Upload `docs/site/` to your hosting provider
 
 ## Features
@@ -28,6 +28,7 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 - **Multi-environment**: Different configs for production, staging, development
 - **Parallel builds**: Threaded page generation for faster builds
 - **Git integration**: Automatic metadata extraction from git commits
+- **Inline copy commands**: Prefix inline code with `c` to create copy-on-click links: c`pip install fr-docs`
 
 ## Navigation
 

@@ -42,7 +42,7 @@ pip install -e .
 
 1. Create a `config.json` in `docs/`
 2. Add your documentation markdown files in `docs/src/`
-3. Run `fr-docs build`
+3. Run c`fr-docs build`
 4. Serve files in `docs/site`
 
 ### Project structure example

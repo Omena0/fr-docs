@@ -405,6 +405,55 @@ code {
   border-radius: 4px;
 }
 
+/* Inline copy command links */
+a.copy-inline-command {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--primary);
+  color: var(--inline-code-text);
+  cursor: pointer;
+  position: relative;
+}
+a.copy-inline-command code {
+  background: var(--inline-code-bg);
+  color: var(--inline-code-text);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+a.copy-inline-command:hover {
+  color: var(--primary);
+}
+.inline-toast {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: var(--primary);
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease;
+  z-index: 10;
+}
+.inline-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.inline-toast::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 3px solid transparent;
+  border-top-color: var(--primary);
+}
+
 pre {
   background: var(--code-bg);
   border-radius: var(--radius);

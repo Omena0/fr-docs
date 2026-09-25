@@ -46,6 +46,7 @@
     "link_preview": true,
     "code_highlighting": true,
     "blockquotes": true,
-    "ext_tags": true
+    "ext_tags": true,
+    "inline_copy": true
   }
 }

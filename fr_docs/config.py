@@ -37,6 +37,7 @@ DEFAULT_CONFIG = {
         "code_highlighting": True,
         "blockquotes": True,
         "ext_tags": True,
+        "inline_copy": True,
     },
 }
 

@@ -404,11 +404,12 @@ def auto_link_markdown(md_text, search_map):
 
     text = code_fence_pat.sub(_cf, md_text)
 
-    inline_code_pat = re.compile(r"`([^`]*?)`")
+    inline_code_pat = re.compile(r"(?<!\w)(c?)`([^`]*?)`")
     inline_codes = []
 
     def _ic(m):
-        inline_codes.append(m.group(1))
+        has_c = m.group(1) == "c"
+        inline_codes.append((m.group(2), has_c))
         return f"@@INLINECODE{len(inline_codes) - 1}@@"
 
     text = inline_code_pat.sub(_ic, text)
@@ -422,13 +423,19 @@ def auto_link_markdown(md_text, search_map):
 
     text = link_pat.sub(_ln, text)
 
-    def _transform_inline_content(content):
+    def _transform_inline_content(content, has_c):
+        if has_c:
+            # content is already without the 'c' prefix
+            esc = html.escape(content)
+            return f'<a class="copy-inline-command" data-copy="{esc}"><code>{esc}</code></a>'
         # Just escape and wrap in <code> - don't auto-link inside inline code
         esc = html.escape(content)
         esc = esc.replace("[", "&#91;").replace("]", "&#93;")
         return f"<code>{esc}</code>"
 
-    transformed_inlines = [_transform_inline_content(c) for c in inline_codes]
+    transformed_inlines = [
+        _transform_inline_content(content, has_c) for content, has_c in inline_codes
+    ]
 
     def _restore_link(m):
         return links[int(m.group(1))]

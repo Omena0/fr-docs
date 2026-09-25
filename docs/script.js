@@ -635,6 +635,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // Run immediately for the current page
   try { addCopyButtons(); } catch (e) { /* ignore */ }
 
+  // ── Inline copy commands ──────────────────────────────────────
+  function initInlineCopyCommands() {
+    document.body.addEventListener('click', async (e) => {
+      const link = e.target.closest('a.copy-inline-command');
+      if (!link) return;
+      e.preventDefault();
+      const cmd = link.dataset.copy || link.textContent.trim();
+      try {
+        await navigator.clipboard.writeText(cmd);
+        showInlineToast(link, 'Copied');
+      } catch (err) {
+        console.error('Copy failed', err);
+        showInlineToast(link, 'Failed');
+      }
+    });
+  }
+
+  function showInlineToast(el, text) {
+    const existing = el.querySelector('.inline-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('span');
+    toast.className = 'inline-toast';
+    toast.textContent = text;
+    el.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 150);
+    }, 1200);
+  }
+
+  // Run for current page
+  try { initInlineCopyCommands(); } catch (e) { /* ignore */ }
+
   // ── Backlinks & Related pages ───────────────────────────────
   function renderBacklinksAndRelated() {
     if (!searchIndex || !searchIndex.length) return;

@@ -106,7 +106,7 @@ docs/src/
 
 Use the action on this repo.
 
-Create `.github/workflows/pages.yml`:
+Create c`.github/workflows/pages.yml`:
 
 ```yml
 name: Docs

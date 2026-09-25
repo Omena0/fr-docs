@@ -157,11 +157,21 @@ done
 echo "All builds completed successfully!"
 ```
 
-## 4. Code Block Copy Buttons
+## 4. Inline Copy Commands
+
+Prefix any inline code block with `c` to create a clickable copy link:
+
+- c`pip install fr-docs`
+- c`fr-docs build --config config.json`
+- c`docker run -v $(pwd):/app myimage`
+
+Hover over the commands above to see the "click to copy" tooltip, then click to copy.
+
+## 5. Code Block Copy Buttons
 
 Hover over any code block above to see the copy button in the top-right corner.
 
-## 5. Search with Symbol and File Results
+## 6. Search with Symbol and File Results
 
 Search can include pages, page titles, headings, content, symbols, and source filenames. Configure these under `features.search.include`:
 
@@ -222,8 +232,9 @@ This is an [ext] feature.
 | Filename Links | ✅ | Auto-link inline filenames |
 | Syntax Highlighting | ✅ | Python, JS, JSON, YAML, Bash |
 | Search | ✅ | Configurable pages, symbols, and files |
-| Versioning | ✅ | From git commits |
+| Version | 6.7.7 |
 | Link Previews | ✅ | Hover previews |
+| Inline Copy Commands | ✅ | c`command` to copy on click |
 
 ## 10. Lists
 
