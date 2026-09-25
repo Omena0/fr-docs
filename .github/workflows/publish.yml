@@ -38,6 +38,7 @@ jobs:
             MINOR_LETTER="${CODE:1:1}"
             PATCH=0
             # Convert letter to number: A=1, B=2, C=3, D=4, ...
+            MINOR_LETTER=$(echo "$MINOR_LETTER" | tr '[:upper:]' '[:lower:]')
             MINOR=$(printf "%d" "'$MINOR_LETTER")
             MINOR=$((MINOR - 96))  # 'a' is 97, so 97-96=1
             SEMVER="${MAJOR}.${MINOR}.${PATCH}"
@@ -51,6 +52,7 @@ jobs:
               # Convert last tag to semver and bump patch
               LAST_MAJOR="${LAST_TAG:0:1}"
               LAST_MINOR_LETTER="${LAST_TAG:1:1}"
+              LAST_MINOR_LETTER=$(echo "$LAST_MINOR_LETTER" | tr '[:upper:]' '[:lower:]')
               LAST_PATCH=0
               LAST_MINOR=$(printf "%d" "'$LAST_MINOR_LETTER")
               LAST_MINOR=$((LAST_MINOR - 96))
