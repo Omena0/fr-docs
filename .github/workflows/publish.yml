@@ -28,7 +28,7 @@ jobs:
       - name: Install build deps
         run: pip install build twine tomli-w
 
-      - name: Extract version from commit message
+      - name: Derive version from commit history and PyPI
         id: version
         run: |
           python scripts/derive_version.py "${{ github.event_name }}" >> $GITHUB_OUTPUT

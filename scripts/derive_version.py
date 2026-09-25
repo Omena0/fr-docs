@@ -17,7 +17,7 @@ In both cases the patch is bumped past the highest patch already published on
 PyPI for that major.minor, so a re-run can never collide with an existing
 distribution.
 
-If PyPI is unreachable the bump falls back to the local tag history.
+If PyPI is unreachable the publish proceeds with patch 0.
 """
 from __future__ import annotations
 
@@ -64,8 +64,8 @@ def published_patches(major: str, minor: str) -> set[int]:
     try:
         with urllib.request.urlopen(PYPI_URL, timeout=15) as resp:
             data = json.load(resp)
-    except (urllib.error.URLError, json.JSONDecodeError) as exc:
-        log(f"warning: could not query PyPI ({exc}); falling back to local tags")
+    except (urllib.error.URLError, json.JSONDecodeError, OSError) as exc:
+        log(f"warning: could not query PyPI ({exc}); publishing with patch 0")
         return set()
     patches: set[int] = set()
     prefix = f"{major}.{minor}."
