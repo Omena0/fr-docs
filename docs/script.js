@@ -1364,11 +1364,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const key = new URL(toSiteHref(href), location.origin).href;
     if (pagePreloadCache.has(key)) return;
     pagePreloadCache.add(key);
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.href = key;
-    link.as = 'document';
-    document.head.appendChild(link);
+    // Fetch with high priority so the browser caches the page for an
+    // instant navigation. We deliberately avoid <link rel="preload" as="document">:
+    // Chrome's preload scanner rejects dynamically-injected document preloads
+    // with "unknown as or type values", and a fetch is all that's needed here.
     void fetch(key, { cache: 'force-cache', priority: 'high' }).catch(() => { });
   }
 

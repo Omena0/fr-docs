@@ -93,7 +93,7 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=N
         parts.extend(
             [
                 '<div class="search-box">',
-                '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+                '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
                 '  <input type="text" id="sidebar-search" placeholder="Search docs…">',
                 "</div>",
             ]

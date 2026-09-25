@@ -77,7 +77,7 @@ def _render_template_placeholders(config):
     def _get_header_search_html():
         if not feature_enabled(config, "search"):
             return ""
-        return """<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        return """<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
       <input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">
       <div id="search-results" class="search-results"></div>"""
 
