@@ -1,6 +1,7 @@
 """HTML pipeline: optimization, minification, and page building for fr-docs."""
 
 import datetime
+import json
 import logging
 import os
 import re
@@ -18,11 +19,13 @@ from .config_accessors import (
 from .config_accessors import (
     project_name,
     sidebar,
+    feature_enabled,
 )
 from .frontmatter import parse_frontmatter
 from .markdown import (
     auto_link_markdown,
     convert_markdown,
+    process_code_references,
     rewrite_md_links,
 )
 from .slug import slug_output_name
@@ -61,6 +64,22 @@ def _render_template_placeholders(config):
             return "Omena0"
         return project_name(config)
 
+    def _get_version_selector_html():
+        if not feature_enabled(config, "versioning"):
+            return ""
+        return f'''<div class="version-selector-wrap">
+          <select id="version-selector" class="version-selector" aria-label="Select version">
+              {config.get("_version_options", "")}
+          </select>
+      </div>'''
+
+    def _get_header_search_html():
+        if not feature_enabled(config, "search"):
+            return ""
+        return '''<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">
+      <div id="search-results" class="search-results"></div>'''
+
     return {
         "site_prefix": output_href("", config),
         "page_title": "",
@@ -68,7 +87,8 @@ def _render_template_placeholders(config):
         "og_title": "",
         "og_description": "",
         "logo_text": _get_logo_text(),
-        "version_options": "",
+        "version_selector_html": _get_version_selector_html(),
+        "header_search_html": _get_header_search_html(),
         "extra_nav_links": "",
         "sidebar": "",
         "subtitle_html": "",
@@ -225,19 +245,55 @@ def build_page(slug, config, slug_page_keys):
     page_title = meta.get("page_title", title).replace("[ext]", "").strip()
     og_title = meta.get("og_title", title).replace("[ext]", "").strip()
 
-    if config.get("search_map"):
+    if config.get("search_map") and feature_enabled(config, "auto_link"):
         body_md = auto_link_markdown(body_md, config["search_map"])
+
+    # Process code references
+    code_refs = []
+    if feature_enabled(config, "code_references"):
+        body_md, code_refs = process_code_references(body_md, config)
 
     body_html, toc_tokens = convert_markdown(body_md)
     body_html = rewrite_md_links(body_html, slug, slug_page_keys)
-    body_html = highlight_code_blocks(body_html)
-    body_html = process_blockquotes(body_html)
-    body_html = format_ext_tags(body_html)
+    
+    if feature_enabled(config, "code_highlighting"):
+        body_html = highlight_code_blocks(body_html)
+    if feature_enabled(config, "blockquotes"):
+        body_html = process_blockquotes(body_html)
+    if feature_enabled(config, "ext_tags"):
+        body_html = format_ext_tags(body_html)
+
+    # Handle <backlinks> and <related> tags
+    backlinks_html = ""
+    related_html = ""
+    search_index = config.get("_search_index", [])
+    if search_index:
+        page_data = next((p for p in search_index if p.get("slug") == slug or p.get("source_slug") == slug), None)
+        if page_data:
+            # Check for tags in original markdown
+            has_backlinks_tag = "<backlinks>" in body_md
+            has_related_tag = "<related>" in body_md
+            
+            if feature_enabled(config, "backlinks") and page_data.get("backlinks"):
+                backlinks_html = _render_backlinks(page_data["backlinks"], search_index, config)
+                if has_backlinks_tag:
+                    # Replace both paragraph-wrapped and bare tag
+                    body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
+                    body_html = body_html.replace("<p><backlinks></p>\n", backlinks_html)
+                    body_html = body_html.replace("<backlinks>", backlinks_html)
+            
+            if feature_enabled(config, "related") and page_data.get("related"):
+                related_html = _render_related(page_data["related"], search_index, config)
+                if has_related_tag:
+                    # Replace both paragraph-wrapped and bare tag
+                    body_html = body_html.replace("<p><related></p>", related_html)
+                    body_html = body_html.replace("<p><related></p>\n", related_html)
+                    body_html = body_html.replace("<related>", related_html)
 
     subtitle_html = f'<p class="subtitle">{subtitle}</p>' if subtitle else ""
 
     ext_sections = _determine_ext_sections(config)
-    sidebar_html = build_toc_sidebar(toc_tokens, slug, sidebar(config), ext_sections)
+    sidebar_html = build_toc_sidebar(toc_tokens, slug, sidebar(config), ext_sections, config)
 
     og_description = subtitle or f"{title} — {project_name(config)} documentation"
 
@@ -250,6 +306,7 @@ def build_page(slug, config, slug_page_keys):
             "subtitle_html": subtitle_html,
             "sidebar": sidebar_html,
             "body": body_html,
+            "code_refs_json": json.dumps(code_refs),
         }
     )
 
@@ -278,3 +335,46 @@ def build_page(slug, config, slug_page_keys):
 
 
 logger = logging.getLogger(__name__)
+
+
+def _render_backlinks(backlinks, search_index, config):
+    """Render backlinks HTML."""
+    if not backlinks:
+        return ""
+    items = []
+    for bl_slug in backlinks:
+        page = next((p for p in search_index if p.get("slug") == bl_slug), None)
+        if page:
+            url = page.get("url", bl_slug + ".html")
+            title = page.get("title", bl_slug)
+            items.append(f'<li><a href="{url}">{title}</a></li>')
+    if not items:
+        return ""
+    return f'''<h2>Backlinks</h2>
+<details class="backlinks-details">
+  <summary>Show {len(items)} backlinks</summary>
+  <ul>
+    {''.join(items)}
+  </ul>
+</details>'''
+
+
+def _render_related(related, search_index, config):
+    """Render related pages HTML."""
+    if not related:
+        return ""
+    items = []
+    for rel_slug in related:
+        page = next((p for p in search_index if p.get("slug") == rel_slug), None)
+        if page:
+            url = page.get("url", rel_slug + ".html")
+            title = page.get("title", rel_slug)
+            items.append(f'<li><a href="{url}">{title}</a></li>')
+    if not items:
+        return ""
+    return f'''<h2>Related</h2>
+<div class="related">
+  <ul>
+    {''.join(items)}
+  </ul>
+</div>'''

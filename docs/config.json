@@ -22,5 +22,17 @@
   "versioning": {
     "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
     "live_label": "Live"
+  },
+  "features": {
+    "backlinks": true,
+    "related": true,
+    "auto_link": true,
+    "versioning": true,
+    "search": true,
+    "code_references": true,
+    "link_preview": true,
+    "code_highlighting": true,
+    "blockquotes": true,
+    "ext_tags": true
   }
 }

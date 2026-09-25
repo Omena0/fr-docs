@@ -24,6 +24,18 @@ DEFAULT_CONFIG = {
         "commit_message_pattern": r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)",
         "live_label": "Live",
     },
+    "features": {
+        "backlinks": True,
+        "related": True,
+        "auto_link": True,
+        "versioning": True,
+        "search": True,
+        "code_references": True,
+        "link_preview": True,
+        "code_highlighting": True,
+        "blockquotes": True,
+        "ext_tags": True,
+    },
 }
 
 
