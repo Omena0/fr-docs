@@ -93,13 +93,7 @@ def highlight_code_blocks(html_text):
 def highlight_source_lines(content, file_path):
     """Return fastpylight-highlighted HTML lines for the source panel."""
     language = normalize_language(file_path.rsplit(".", 1)[-1])
-    if language == "plaintext":
-        return [html.escape(line) for line in content.splitlines()]
-    highlighted = fastpylight.highlight_spans(content, language)
-    match = re.match(r"<pre><code>(.*)</code></pre>$", highlighted, flags=re.DOTALL)
-    if not match:
-        return [html.escape(line) for line in content.splitlines()]
-    return match.group(1).splitlines()
+    return [_highlight_fragment(line, language) for line in content.splitlines()]
 
 
 def process_blockquotes(html_text):
