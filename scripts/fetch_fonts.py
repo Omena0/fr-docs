@@ -40,18 +40,7 @@ FONT_FACE_RE = re.compile(
 )
 
 # Metric-compatible ascent/descent (in font design units) so that
-# font-display: optional never triggers a reflow. Values come from
-# the hhea table of each font family:
-#   Inter           unitsPerEm=2048 ascent=1984 descent=494
-#   JetBrains Mono  unitsPerEm=1000 ascent=1020 descent=300
-METRICS = {
-    "Inter": "1984 494",
-    "JetBrains Mono": "1020 300",
-}
-
-
-# Metric-compatible ascent/descent (in font design units) so that
-# font-display: optional never triggers a reflow. Values come from
+# font-display: swap never triggers a reflow. Values come from
 # the hhea table of each font family:
 #   Inter           unitsPerEm=2048 ascent=1984 descent=494
 #   JetBrains Mono  unitsPerEm=1000 ascent=1020 descent=300
@@ -136,7 +125,7 @@ def main() -> int:
   font-family: '{family}';
   font-style: {style};
   font-weight: {weight};
-  font-display: optional;
+  font-display: swap;
   src: url('fonts/{fname}') format('{fmt}');
   font-ascent-descent: {metrics};
 }}"""
@@ -147,7 +136,7 @@ def main() -> int:
   font-family: '{family}';
   font-style: {style};
   font-weight: {weight};
-  font-display: optional;
+  font-display: swap;
   src: url('fonts/{fname}') format('{fmt}');
 }}"""
             )
