@@ -6,17 +6,30 @@ encodes the minor version (A=1, B=2, C=3, ...). This script converts that
 code into a PEP 440 version string and prints ``key=value`` lines suitable
 for ``$GITHUB_OUTPUT``.
 
-- On ``push`` the code is read from the latest commit message.
-- On ``workflow_dispatch`` the code is taken from the most recent tag and
-  the patch number is bumped.
+- On ``push`` the code is read from the most recent commit whose subject
+  starts with a version code (walking back through history); if none exists
+  the publish is skipped.
+- On ``workflow_dispatch`` the same commit-derived code is used, but the
+  publish always runs (falling back to ``0.1.0`` when no version code exists
+  in history).
+
+In both cases the patch is bumped past the highest patch already published on
+PyPI for that major.minor, so a re-run can never collide with an existing
+distribution.
+
+If PyPI is unreachable the bump falls back to the local tag history.
 """
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 
-CODE_RE = re.compile(r"^(\d+)([A-Za-z])")
+CODE_RE = re.compile(r"^(\d+)([A-Za-z])\b")
+PYPI_URL = "https://pypi.org/pypi/fr-docs/json"
 
 
 def log(message: str) -> None:
@@ -28,60 +41,75 @@ def letter_to_minor(letter: str) -> int:
     return ord(letter.lower()) - ord("a") + 1
 
 
-def code_to_semver(code: str, patch: int) -> str:
-    match = CODE_RE.match(code)
-    if not match:
-        raise ValueError(f"invalid version code: {code!r}")
-    major, minor_letter = match.groups()
-    return f"{major}.{letter_to_minor(minor_letter)}.{patch}"
+def latest_versioned_commit_subject() -> str | None:
+    """Most recent commit whose subject starts with a version code.
 
-
-def head_commit_subject() -> str:
-    return subprocess.run(
-        ["git", "log", "-1", "--pretty=%s"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-
-
-def latest_tag() -> str | None:
+    Walks back from HEAD until a commit like ``2A - ...`` is found, so a
+    non-versioned follow-up commit still triggers a publish.
+    """
     result = subprocess.run(
-        ["git", "tag", "--list", "[0-9]*[A-Za-z]*", "--sort=-creatordate"],
+        ["git", "log", "--pretty=%s"],
         capture_output=True,
         text=True,
         check=True,
     )
     for line in result.stdout.splitlines():
-        line = line.strip()
-        if CODE_RE.match(line):
-            return line
+        if CODE_RE.match(line.strip()):
+            return line.strip()
     return None
+
+
+def published_patches(major: str, minor: str) -> set[int]:
+    """Return the set of patch numbers already published for major.minor."""
+    try:
+        with urllib.request.urlopen(PYPI_URL, timeout=15) as resp:
+            data = json.load(resp)
+    except (urllib.error.URLError, json.JSONDecodeError) as exc:
+        log(f"warning: could not query PyPI ({exc}); falling back to local tags")
+        return set()
+    patches: set[int] = set()
+    prefix = f"{major}.{minor}."
+    for version in data.get("releases", {}):
+        if not version.startswith(prefix):
+            continue
+        rest = version[len(prefix):]
+        if rest.isdigit():
+            patches.add(int(rest))
+    return patches
+
+
+def next_patch(major: str, minor: str, base: int) -> int:
+    """Smallest patch >= base not already published on PyPI."""
+    existing = published_patches(major, minor)
+    patch = base
+    while patch in existing:
+        patch += 1
+    return patch
 
 
 def main() -> int:
     event = sys.argv[1] if len(sys.argv) > 1 else ""
 
-    if event == "workflow_dispatch":
-        tag = latest_tag()
-        if tag is None:
-            # No previous release: start at 0.1.0
+    subject = latest_versioned_commit_subject()
+    if subject is None:
+        if event == "workflow_dispatch":
+            # No version code anywhere in history: start at 0.1.0
             print("version=0.1.0")
             print("release_title=0A")
             print("should_publish=true")
             return 0
-        version = code_to_semver(tag, patch=1)
-        release_title = f"{tag}1"
-    else:
-        subject = head_commit_subject()
-        match = CODE_RE.match(subject)
-        if match is None:
-            print("should_publish=false")
-            log("Skipping publish — no version prefix in commit message")
-            return 0
-        code = match.group(0)
-        version = code_to_semver(code, patch=0)
-        release_title = code
+        print("should_publish=false")
+        log("Skipping publish — no version prefix in commit history")
+        return 0
+
+    match = CODE_RE.match(subject)
+    assert match is not None
+    code = match.group(0)
+    major, minor_letter = match.groups()
+    minor = letter_to_minor(minor_letter)
+    patch = next_patch(major, minor, base=0)
+    version = f"{major}.{minor}.{patch}"
+    release_title = code if patch == 0 else f"{code}{patch}"
 
     print(f"version={version}")
     print(f"release_title={release_title}")
