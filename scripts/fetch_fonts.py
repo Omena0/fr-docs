@@ -39,6 +39,27 @@ FONT_FACE_RE = re.compile(
     r"\}"
 )
 
+# Metric-compatible ascent/descent (in font design units) so that
+# font-display: optional never triggers a reflow. Values come from
+# the hhea table of each font family:
+#   Inter           unitsPerEm=2048 ascent=1984 descent=494
+#   JetBrains Mono  unitsPerEm=1000 ascent=1020 descent=300
+METRICS = {
+    "Inter": "1984 494",
+    "JetBrains Mono": "1020 300",
+}
+
+
+# Metric-compatible ascent/descent (in font design units) so that
+# font-display: optional never triggers a reflow. Values come from
+# the hhea table of each font family:
+#   Inter           unitsPerEm=2048 ascent=1984 descent=494
+#   JetBrains Mono  unitsPerEm=1000 ascent=1020 descent=300
+METRICS = {
+    "Inter": "1984 494",
+    "JetBrains Mono": "1020 300",
+}
+
 
 def fetch_text(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "fr-docs/1.0"})
@@ -108,15 +129,28 @@ def main() -> int:
         if not download_font(src_url, dest):
             print(f"  ! skipping {family} {weight} {style} (download failed)")
             continue
-        local_rules.append(
-            f"""@font-face {{
+        metrics = METRICS.get(family, "")
+        if metrics:
+            local_rules.append(
+                f"""@font-face {{
+  font-family: '{family}';
+  font-style: {style};
+  font-weight: {weight};
+  font-display: optional;
+  src: url('fonts/{fname}') format('{fmt}');
+  font-ascent-descent: {metrics};
+}}"""
+            )
+        else:
+            local_rules.append(
+                f"""@font-face {{
   font-family: '{family}';
   font-style: {style};
   font-weight: {weight};
   font-display: optional;
   src: url('fonts/{fname}') format('{fmt}');
 }}"""
-        )
+            )
 
     if not local_rules:
         print("ERROR: no fonts were downloaded", file=sys.stderr)

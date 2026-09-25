@@ -4,6 +4,7 @@
   font-weight: 400;
   font-display: optional;
   src: url('fonts/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZg.ttf') format('truetype');
+  font-ascent-descent: 1984 494;
 }
 @font-face {
   font-family: 'Inter';
@@ -11,6 +12,7 @@
   font-weight: 500;
   font-display: optional;
   src: url('fonts/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fMZg.ttf') format('truetype');
+  font-ascent-descent: 1984 494;
 }
 @font-face {
   font-family: 'Inter';
@@ -18,6 +20,7 @@
   font-weight: 600;
   font-display: optional;
   src: url('fonts/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYMZg.ttf') format('truetype');
+  font-ascent-descent: 1984 494;
 }
 @font-face {
   font-family: 'Inter';
@@ -25,6 +28,7 @@
   font-weight: 700;
   font-display: optional;
   src: url('fonts/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZg.ttf') format('truetype');
+  font-ascent-descent: 1984 494;
 }
 @font-face {
   font-family: 'Inter';
@@ -32,6 +36,7 @@
   font-weight: 800;
   font-display: optional;
   src: url('fonts/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuDyYMZg.ttf') format('truetype');
+  font-ascent-descent: 1984 494;
 }
 @font-face {
   font-family: 'JetBrains Mono';
@@ -39,6 +44,7 @@
   font-weight: 400;
   font-display: optional;
   src: url('fonts/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPQ.ttf') format('truetype');
+  font-ascent-descent: 1020 300;
 }
 @font-face {
   font-family: 'JetBrains Mono';
@@ -46,6 +52,7 @@
   font-weight: 500;
   font-display: optional;
   src: url('fonts/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8-qxjPQ.ttf') format('truetype');
+  font-ascent-descent: 1020 300;
 }
 @font-face {
   font-family: 'JetBrains Mono';
@@ -53,6 +60,7 @@
   font-weight: 600;
   font-display: optional;
   src: url('fonts/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8FqtjPQ.ttf') format('truetype');
+  font-ascent-descent: 1020 300;
 }
 @font-face {
   font-family: 'JetBrains Mono';
@@ -60,4 +68,5 @@
   font-weight: 700;
   font-display: optional;
   src: url('fonts/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8L6tjPQ.ttf') format('truetype');
+  font-ascent-descent: 1020 300;
 }
