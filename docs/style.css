@@ -493,6 +493,14 @@ pre code {
 .copy-btn:active { transform: scale(.98); }
 .copy-btn.copied { background: var(--green); }
 
+/* Mobile: always show copy button on code blocks (touch-only, no mouse) */
+@media (any-pointer: coarse) and not (any-pointer: fine) {
+  .code-wrap .copy-btn {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Syntax highlighting */
 pre code .hl-attribute { color: #79c0ff; }
 pre code .hl-attribute-builtin { color: #e6edf3; }

@@ -42,12 +42,8 @@ DEFAULT_CONFIG = {
     },
     "source_files": {
         "search_dirs": ["parent", "src_parent", "docs"],
-        "patterns": [
-            "docs/src/*.md",
-            "docs/*.js",
-            "docs/*.css"
-        ],
-        "ignore_dirs": []
+        "patterns": ["docs/src/*.md", "docs/*.js", "docs/*.css"],
+        "ignore_dirs": [],
     },
     "features": {
         "backlinks": True,
@@ -60,7 +56,7 @@ DEFAULT_CONFIG = {
         "code_highlighting": True,
         "blockquotes": True,
         "ext_tags": True,
-        "inline_copy": True
+        "inline_copy": True,
     },
 }
 

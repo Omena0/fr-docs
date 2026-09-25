@@ -15,12 +15,8 @@ DEFAULT_CONFIG = {
     "docs_dir": ".",
     "source_files": {
         "search_dirs": ["parent", "src_parent", "docs"],
-        "patterns": [
-            "docs/src/*.md",
-            "docs/*.js",
-            "docs/*.css"
-        ],
-        "ignore_dirs": []
+        "patterns": ["docs/src/*.md", "docs/*.js", "docs/*.css"],
+        "ignore_dirs": [],
     },
     "sidebar": [],
     "build": {

@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
   searchResults.addEventListener('click', (e) => {
     const link = e.target.closest('.search-hit');
     if (!link) return;
-    
+
     const href = link.getAttribute('href');
     if (href && href.startsWith('#coderef:')) {
       e.preventDefault();
@@ -1369,10 +1369,10 @@ document.addEventListener('DOMContentLoaded', () => {
     link.href = key;
     link.as = 'document';
     document.head.appendChild(link);
-    void fetch(key, { cache: 'force-cache', priority: 'high' }).catch(() => {});
+    void fetch(key, { cache: 'force-cache', priority: 'high' }).catch(() => { });
   }
 
-function createPreviewTooltip(isCode) {
+  function createPreviewTooltip(isCode) {
     if (previewTooltip) return previewTooltip;
     previewTooltip = document.createElement('div');
     previewTooltip.className = 'link-preview-tooltip';
@@ -1479,7 +1479,7 @@ function createPreviewTooltip(isCode) {
     }
   }
 
-  function showPreviewTooltip(x, y, content, isCode=false) {
+  function showPreviewTooltip(x, y, content, isCode = false) {
     if (previewHideTimeout) clearTimeout(previewHideTimeout);
     const tooltip = createPreviewTooltip();
     tooltip.innerHTML = content;
@@ -1501,6 +1501,28 @@ function createPreviewTooltip(isCode) {
 
   function initLinkPreviews() {
     if (!featureEnabled('link_preview')) return;
+
+    const hasFinePointer = window.matchMedia('(any-pointer: fine)').matches;
+
+    if (!hasFinePointer) {
+      // No mouse available - skip hover initialization, but set up a listener to
+      // re-initialize if mouse is detected later (e.g., touch-screen laptop).
+      function handleFirstMouse() {
+        if (document.querySelectorAll('a[href]').length === 0) {
+          return;
+        }
+        const stillNoFine = window.matchMedia('(any-pointer: fine)').matches;
+        if (!stillNoFine) {
+          return;
+        }
+        document.removeEventListener('mousemove', handleFirstMouse);
+        document.removeEventListener('mousedown', handleFirstMouse);
+        initLinkPreviews();
+      }
+      document.addEventListener('mousemove', handleFirstMouse, { once: true });
+      document.addEventListener('mousedown', handleFirstMouse, { once: true });
+      return;
+    }
 
     document.querySelectorAll('a[href]').forEach(link => {
       const href = link.getAttribute('href');
@@ -1541,7 +1563,7 @@ function createPreviewTooltip(isCode) {
                   </div>
                   <div class="preview-code">${preview.highlightedLines}</div>
                 `;
-                showPreviewTooltip(e.clientX, e.clientY, content, isCode=true);
+                showPreviewTooltip(e.clientX, e.clientY, content, isCode = true);
               }
             }
           } else if (isSearchCodeRef) {
@@ -1560,7 +1582,7 @@ function createPreviewTooltip(isCode) {
                   </div>
                   <div class="preview-code">${preview.highlightedLines}</div>
                 `;
-                showPreviewTooltip(e.clientX, e.clientY, content, isCode=true);
+                showPreviewTooltip(e.clientX, e.clientY, content, isCode = true);
               }
             }
           } else if (!href.startsWith('#')) {
@@ -1571,7 +1593,7 @@ function createPreviewTooltip(isCode) {
                 <div class="preview-header">${preview.title || ''}</div>
                 <div class="preview-description">${preview.description || ''}</div>
               `;
-              showPreviewTooltip(e.clientX, e.clientY, content, isCode=false);
+              showPreviewTooltip(e.clientX, e.clientY, content, isCode = false);
             }
           }
         }, 300); // 300ms delay before showing preview
