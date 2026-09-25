@@ -1,6 +1,7 @@
 {
   "project_name": "Fr-docs",
   "project_url": "https://github.com/Omena0/fr-docs",
+  "copyright_holder": "Omena0",
   "docs_dir": ".",
   "site_path_prefix": "/fr-docs",
   "sidebar": [
