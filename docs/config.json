@@ -9,10 +9,13 @@
       ["installation", "Installation"],
       ["quickstart", "Quickstart"],
       ["config.json", "Configuration"]
+    ]],
+    ["Features", [
+      ["features", "Features Showcase"]
     ]]
   ],
   "build": {
-    "workers": 6,
+    "workers": 1,
     "minify_html": true,
     "optimize_html": true,
     "zstd_level": 22,

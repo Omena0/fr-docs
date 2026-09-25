@@ -919,6 +919,8 @@ h1 .ext-tag {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .link-preview-tooltip .preview-file {

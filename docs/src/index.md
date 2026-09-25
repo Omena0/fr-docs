@@ -6,7 +6,7 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 
 - [Installation](installation.md)
 - [Quickstart](quickstart.md)
-- [Configuration](configuration.md)
+- [Configuration](config.json.md)
 
 ## Getting Started in 5 Minutes
 
@@ -33,4 +33,4 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 
 - [Installation](installation.md) - Install fr-docs
 - [Quickstart](quickstart.md) - Step-by-step tutorial
-- [Configuration](configuration.md) - Configure your project
+- [Configuration](config.json.md) - Configure your project

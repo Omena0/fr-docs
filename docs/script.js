@@ -488,6 +488,29 @@ document.addEventListener('DOMContentLoaded', () => {
     searchResults.style.display = 'block';
   }
 
+  // Click handler for search results (handles both regular links and coderef links)
+  searchResults.addEventListener('click', (e) => {
+    const link = e.target.closest('.search-hit');
+    if (!link) return;
+    
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('#coderef:')) {
+      e.preventDefault();
+      const match = href.match(/^#coderef:([^:]+):(\d+)$/);
+      if (match) {
+        const file = match[1];
+        const line = parseInt(match[2], 10);
+        const refs = parseCodeRefs();
+        const ref = refs.find(r => r.file === file && r.line === line);
+        if (ref) {
+          showCodePanel(ref);
+        } else {
+          showCodePanel({ file, line, id: 'search-result' });
+        }
+      }
+    }
+  });
+
   if (headerSearch) {
     const onSearchInteract = () => triggerSearchIndexLoad();
     headerSearch.addEventListener('pointerdown', onSearchInteract, { once: true });
@@ -1039,22 +1062,78 @@ document.addEventListener('DOMContentLoaded', () => {
     return langMap[ext] || 'plaintext';
   }
 
+  function extractStrings(code) {
+    const strings = [];
+    const placeholderBase = "___STR_";
+
+    // Match both single and double quoted strings, including escaped quotes
+    // Handle both '...' and "..." including escaped quotes inside
+    const stringRegex = /(["'])(?:\\.|(?!\1)[^\\])*\1/g;
+
+    let modified = code.replace(stringRegex, (match) => {
+        strings.push(match);
+        return placeholderBase + (strings.length - 1) + "___";
+    });
+
+    return { modified, strings };
+  }
+
+  function extractComments(code) {
+    const comments = [];
+    const placeholderBase = "___CMT_";
+    const commentRegex = /^(\s*)(#.*)$/gm;
+
+    let modified = code.replace(commentRegex, (match) => {
+        comments.push(match);
+        return placeholderBase + (comments.length - 1) + "___";
+    });
+
+    return { modified, comments };
+  }
+
+  function restoreStrings(code, strings) {
+    const placeholderBase = "___STR_";
+    return code.replace(new RegExp(placeholderBase + '(\\d+)_' + '___', 'g'), (match, index) => {
+        return strings[parseInt(index, 10)] || match;
+    });
+  }
+
+  function restoreComments(code, comments) {
+    const placeholderBase = "___CMT_";
+    return code.replace(new RegExp(placeholderBase + '(\\d+)_' + '___', 'g'), (match, index) => {
+        return comments[parseInt(index, 10)] || match;
+    });
+  }
+
   function highlightCode(code, language) {
     // Simple highlighting for common languages
     if (!code) return '<span class="cm">(empty file)</span>';
     const escaped = code
-      .replace(/&/g, '&')
-      .replace(/</g, '<')
-      .replace(/>/g, '>');
+      .replace(/&/g, '&' + 'amp;')
+      .replace(/</g, '&' + 'lt;')
+      .replace(/>/g, '&' + 'gt;');
 
     // Very basic syntax highlighting for Python-like languages
     if (language === 'python') {
-      return escaped
-        .replace(/^(\s*)(#.*)$/gm, '$1<span class="cm">$2</span>')
-        .replace(/\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g, '<span class="kw">$1</span>')
-        .replace(/(["'])((?:\\.|(?!\1).)*)\1/g, '<span class="st">$1$2$1</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="nb">$1</span>')
-        .replace(/(@\w+)/g, '<span class="dc">$1</span>');
+      // Extract comments first
+      const { modified: afterComments, comments } = extractComments(escaped);
+      // Extract strings from the result
+      const { modified: afterStrings, strings } = extractStrings(afterComments);
+
+      let highlighted = afterStrings
+        .replace(/\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g, '<span class="kw">$&</span>')
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="nb">$&</span>')
+        .replace(/(@\w+)/g, '<span class="dc">$&</span>');
+
+      // Restore comments and highlight them
+      highlighted = restoreComments(highlighted, comments);
+      highlighted = highlighted.replace(/^(\s*)(#.*)$/gm, '$1<span class="cm">$2</span>');
+
+      // Restore strings and highlight them
+      highlighted = restoreStrings(highlighted, strings);
+      highlighted = highlighted.replace(/(["'])(?:\\.|(?!\1)[^\\])*\1/g, '<span class="st">$&</span>');
+
+      return highlighted;
     }
     return `<span class="plain">${escaped}</span>`;
   }
@@ -1153,24 +1232,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!parseCodeRefs().length) return;
 
     loadSourceFiles().then(() => {
-      // Handle clicks on code reference links in content (data-coderef-id format)
-      document.querySelectorAll('a.code-reference[data-coderef-id]').forEach(link => {
-        link.addEventListener('click', (e) => {
+      // Use event delegation on document for code reference links
+      // This handles both static and dynamically added links
+      document.addEventListener('click', (e) => {
+        // Handle code-reference links with data-coderef-id
+        const codeRefLink = e.target.closest('a.code-reference[data-coderef-id]');
+        if (codeRefLink) {
           e.preventDefault();
-          const refId = link.dataset.coderefId;
+          const refId = codeRefLink.dataset.coderefId;
           const refs = parseCodeRefs();
           const ref = refs.find(r => r.id === refId);
           if (ref) {
             showCodePanel(ref);
           }
-        });
-      });
+          return;
+        }
 
-      // Handle clicks on search result links (#coderef:file.py:line format)
-      document.querySelectorAll('a[href^="#coderef:"]').forEach(link => {
-        link.addEventListener('click', (e) => {
+        // Handle search result links with #coderef:file:line format
+        const searchRefLink = e.target.closest('a[href^="#coderef:"]');
+        if (searchRefLink) {
+          console.log(`found coderef: ${searchRefLink}`);
           e.preventDefault();
-          const href = link.getAttribute('href');
+          const href = searchRefLink.getAttribute('href');
           const match = href.match(/^#coderef:([^:]+):(\d+)$/);
           if (match) {
             const file = match[1];
@@ -1180,11 +1263,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ref) {
               showCodePanel(ref);
             } else {
-              // If not found in current page, try to fetch and show anyway
               showCodePanel({ file, line, id: 'search-result' });
             }
           }
-        });
+          return;
+        }
       });
     });
   }
@@ -1196,7 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let linkPreviewCache = new Map();
   let previewTooltip = null;
 
-  function createPreviewTooltip() {
+function createPreviewTooltip() {
     if (previewTooltip) return previewTooltip;
     previewTooltip = document.createElement('div');
     previewTooltip.className = 'link-preview-tooltip';
@@ -1204,6 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
       position: fixed;
       z-index: 3000;
       max-width: 400px;
+      min-width: 280px;
       background: var(--bg-soft);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -1235,24 +1319,6 @@ document.addEventListener('DOMContentLoaded', () => {
       'astro': 'astro', 'mdx': 'mdx',
     };
     return langMap[ext] || 'plaintext';
-  }
-
-  function highlightCode(code, language) {
-    if (!code) return '<span class="cm">(empty file)</span>';
-    const escaped = code
-      .replace(/&/g, '&')
-      .replace(/</g, '<')
-      .replace(/>/g, '>');
-
-    if (language === 'python') {
-      return escaped
-        .replace(/^(\s*)(#.*)$/gm, '$1<span class="cm">$2</span>')
-        .replace(/\b(False|None|True|and|as|assert|async|await|break|class|continue|def|del|elif|else|except|finally|for|from|global|if|import|in|is|lambda|nonlocal|not|or|pass|raise|return|try|while|with|yield)\b/g, '<span class="kw">$1</span>')
-        .replace(/(["'])((?:\\.|(?!\1).)*)\1/g, '<span class="st">$1$2$1</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="nb">$1</span>')
-        .replace(/(@\w+)/g, '<span class="dc">$1</span>');
-    }
-    return `<span class="plain">${escaped}</span>`;
   }
 
   async function fetchPagePreview(href) {
@@ -1391,6 +1457,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Handle search result code reference links
             const match = href.match(/^#coderef:([^:]+):(\d+)$/);
             if (match) {
+              console.log(`opening coderef from fragment: ${match}`);
               const file = match[1];
               const line = parseInt(match[2], 10);
               const preview = await fetchCodePreview(file, line);
