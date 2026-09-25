@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 DEFAULT_CONFIG = {
-    "$schema": "https://raw.githubusercontent.com/Omena0/fr-docs/main/docs/config.schema.json",
+    "$schema": "https://raw.githubusercontent.com/Omena0/fr-docs/main/config.schema.json",
     "project_name": "Project Name",
     "copyright_holder": "CHANGE_ME",
     "project_url": "",
