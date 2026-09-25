@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Omena0/fr-docs/main/docs/config.schema.json",
+  "title": "fr-docs configuration",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string", "format": "uri" },
+    "project_name": { "type": "string" },
+    "copyright_holder": { "type": "string" },
+    "project_url": { "type": "string", "format": "uri" },
+    "docs_dir": { "type": "string" },
+    "src_dir": { "type": "string" },
+    "out_dir": { "type": "string" },
+    "site_path_prefix": { "type": "string" },
+    "sidebar": { "type": "array" },
+    "build": {
+      "type": "object",
+      "properties": {
+        "workers": { "type": "integer", "minimum": 1 },
+        "minify_html": { "type": "boolean" },
+        "optimize_html": { "type": "boolean" },
+        "zstd_level": { "type": "integer" },
+        "search_index_filename": { "type": "string" },
+        "git_meta_filename": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "versioning": {
+      "type": "object",
+      "properties": {
+        "commit_message_pattern": { "type": "string" },
+        "live_label": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "backlinks": { "type": ["boolean", "object"] },
+        "related": { "type": ["boolean", "object"] },
+        "auto_link": { "type": "boolean" },
+        "versioning": { "type": "boolean" },
+        "search": {
+          "type": ["boolean", "object"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "include": {
+              "type": "object",
+              "properties": {
+                "pages": { "type": "boolean" },
+                "titles": { "type": "boolean" },
+                "headings": { "type": "boolean" },
+                "content": { "type": "boolean" },
+                "symbols": { "type": "boolean" },
+                "files": { "type": "boolean" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "code_references": { "type": "boolean" },
+        "link_preview": { "type": "boolean" },
+        "code_highlighting": { "type": "boolean" },
+        "blockquotes": { "type": "boolean" },
+        "ext_tags": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

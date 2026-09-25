@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/Omena0/fr-docs/main/docs/config.schema.json",
   "project_name": "Fr-docs",
   "project_url": "https://github.com/Omena0/fr-docs",
   "copyright_holder": "Omena0",
