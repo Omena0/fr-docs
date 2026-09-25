@@ -23,6 +23,7 @@ from .config_accessors import (
 )
 from .frontmatter import parse_frontmatter
 from .markdown import (
+    auto_link_filenames,
     auto_link_markdown,
     convert_markdown,
     process_code_references_html,
@@ -247,6 +248,10 @@ def build_page(slug, config, slug_page_keys):
     body_html, toc_tokens = convert_markdown(body_md)
     body_html = rewrite_md_links(body_html, slug, slug_page_keys)
 
+    # Auto-link bare filename references (e.g., config.json -> config.json.md)
+    if feature_enabled(config, "auto_link"):
+        body_html = auto_link_filenames(body_html, slug, config.get("_slug_page_keys", {}))
+
     # Process code references (in HTML, after markdown conversion)
     code_refs = []
     if feature_enabled(config, "code_references"):
@@ -276,8 +281,11 @@ def build_page(slug, config, slug_page_keys):
         # Check for tags in original markdown
         has_backlinks_tag = "<backlinks>" in body_md
         has_related_tag = "<related>" in body_md
+        # Check for disable tags
+        no_backlinks = "<!no_backlinks>" in body_md
+        no_related = "<!no_related>" in body_md
 
-        if feature_enabled(config, "backlinks") and page_data.get("backlinks"):
+        if feature_enabled(config, "backlinks") and page_data.get("backlinks") and not no_backlinks:
             backlinks_html = _render_backlinks(
                 page_data["backlinks"], search_index, config
             )
@@ -287,7 +295,7 @@ def build_page(slug, config, slug_page_keys):
                 body_html = body_html.replace("<p><backlinks></p>\n", backlinks_html)
                 body_html = body_html.replace("<backlinks>", backlinks_html)
 
-        if feature_enabled(config, "related") and page_data.get("related"):
+        if feature_enabled(config, "related") and page_data.get("related") and not no_related:
             related_html = _render_related(page_data["related"], search_index, config)
             if has_related_tag:
                 # Replace both paragraph-wrapped and bare tag

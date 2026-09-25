@@ -40,12 +40,57 @@ PYTHON_KEYWORDS = {
     "yield",
 }
 
+BASH_KEYWORDS = {
+    "if",
+    "then",
+    "else",
+    "elif",
+    "fi",
+    "for",
+    "while",
+    "until",
+    "do",
+    "done",
+    "case",
+    "esac",
+    "in",
+    "function",
+    "return",
+    "exit",
+    "break",
+    "continue",
+    "local",
+    "declare",
+    "readonly",
+    "export",
+    "source",
+    "alias",
+    "unalias",
+    "set",
+    "unset",
+    "shift",
+    "trap",
+    "wait",
+    "exec",
+    "eval",
+    "let",
+    "select",
+    "time",
+    "coproc",
+    "mapfile",
+    "readarray",
+}
+
+JSON_KEYWORDS = {"true", "false", "null"}
+
+YAML_KEYWORDS = {"true", "false", "null", "yes", "no", "on", "off"}
+
 TOKEN_SPECS = [
     (
         "st",
-        r"&quot;&quot;&quot;.*?&quot;&quot;&quot;|&#x27;&#x27;&#x27;.*?&#x27;&#x27;&#x27;",
+        r'""".*?"""|\'\'\'.*?\'\'\'',
     ),
-    ("st", r"f?&quot;(?:[^&]|&(?!quot;))*?&quot;|f?&#x27;(?:[^&]|&(?!#x27;))*?&#x27;"),
+    ("st", r'f?"(?:[^&]|&(?!quot;))*?"|f?\'(?:[^&]|&(?!#x27;))*?\''),
     ("cm", r"#[^\n]*"),
     ("dc", r"@\w+"),
     ("nb", r"\b\d+\.?\d*\b"),
@@ -60,6 +105,54 @@ HIGHLIGHT_PATTERN = "|".join(
     f"(?P<g{i}>{pat})" for i, (_, pat) in enumerate(TOKEN_SPECS)
 )
 HIGHLIGHT_RE = re.compile(HIGHLIGHT_PATTERN, flags=re.DOTALL)
+
+# Bash highlighting
+BASH_TOKEN_SPECS = [
+    ("cm", r"#[^\n]*"),
+    ("st", r'"(?:[^&]|&(?!quot;))*?"|\'(?:[^&]|&(?!#x27;))*?\''),
+    ("nb", r"\b\d+\.?\d*\b"),
+    (
+        "kw",
+        r"\b(?:" + "|".join(sorted(BASH_KEYWORDS, key=len, reverse=True)) + r")\b",
+    ),
+]
+BASH_HIGHLIGHT_CLASSES = [cls for cls, _ in BASH_TOKEN_SPECS]
+BASH_HIGHLIGHT_PATTERN = "|".join(
+    f"(?P<g{i}>{pat})" for i, (_, pat) in enumerate(BASH_TOKEN_SPECS)
+)
+BASH_HIGHLIGHT_RE = re.compile(BASH_HIGHLIGHT_PATTERN, flags=re.DOTALL)
+
+# JSON highlighting
+JSON_TOKEN_SPECS = [
+    ("st", r'"(?:[^&]|&(?!quot;))*?"'),
+    ("nb", r"\b\d+\.?\d*\b"),
+    (
+        "kw",
+        r"\b(?:" + "|".join(sorted(JSON_KEYWORDS, key=len, reverse=True)) + r")\b",
+    ),
+]
+JSON_HIGHLIGHT_CLASSES = [cls for cls, _ in JSON_TOKEN_SPECS]
+JSON_HIGHLIGHT_PATTERN = "|".join(
+    f"(?P<g{i}>{pat})" for i, (_, pat) in enumerate(JSON_TOKEN_SPECS)
+)
+JSON_HIGHLIGHT_RE = re.compile(JSON_HIGHLIGHT_PATTERN, flags=re.DOTALL)
+
+# YAML highlighting
+YAML_TOKEN_SPECS = [
+    ("cm", r"#[^\n]*"),
+    ("st", r'"(?:[^&]|&(?!quot;))*?"|\'(?:[^&]|&(?!#x27;))*?\''),
+    ("nb", r"\b\d+\.?\d*\b"),
+    (
+        "kw",
+        r"\b(?:" + "|".join(sorted(YAML_KEYWORDS, key=len, reverse=True)) + r")\b",
+    ),
+]
+YAML_HIGHLIGHT_CLASSES = [cls for cls, _ in YAML_TOKEN_SPECS]
+YAML_HIGHLIGHT_PATTERN = "|".join(
+    f"(?P<g{i}>{pat})" for i, (_, pat) in enumerate(YAML_TOKEN_SPECS)
+)
+YAML_HIGHLIGHT_RE = re.compile(YAML_HIGHLIGHT_PATTERN, flags=re.DOTALL)
+
 
 PRE_CODE_RE = re.compile(
     r'<pre><code class="language-(\w*)">(.*?)</code></pre>', flags=re.DOTALL
@@ -82,6 +175,42 @@ def highlight_python(code):
     return HIGHLIGHT_RE.sub(_replacer, code)
 
 
+def highlight_bash(code):
+    """Highlight Bash tokens using the precompiled regex."""
+
+    def _replacer(m):
+        for i, cls in enumerate(BASH_HIGHLIGHT_CLASSES):
+            if m.group(f"g{i}") is not None:
+                return f'<span class="{cls}">{m.group(f"g{i}")}</span>'
+        return m.group(0)
+
+    return BASH_HIGHLIGHT_RE.sub(_replacer, code)
+
+
+def highlight_json(code):
+    """Highlight JSON tokens using the precompiled regex."""
+
+    def _replacer(m):
+        for i, cls in enumerate(JSON_HIGHLIGHT_CLASSES):
+            if m.group(f"g{i}") is not None:
+                return f'<span class="{cls}">{m.group(f"g{i}")}</span>'
+        return m.group(0)
+
+    return JSON_HIGHLIGHT_RE.sub(_replacer, code)
+
+
+def highlight_yaml(code):
+    """Highlight YAML tokens using the precompiled regex."""
+
+    def _replacer(m):
+        for i, cls in enumerate(YAML_HIGHLIGHT_CLASSES):
+            if m.group(f"g{i}") is not None:
+                return f'<span class="{cls}">{m.group(f"g{i}")}</span>'
+        return m.group(0)
+
+    return YAML_HIGHLIGHT_RE.sub(_replacer, code)
+
+
 def highlight_code_blocks(html_text):
     """Apply highlighting to <pre><code class=\"language-...\"> blocks."""
 
@@ -90,6 +219,12 @@ def highlight_code_blocks(html_text):
         inner = m.group(2)
         if "python" in lang or "py" in lang:
             inner = highlight_python(inner)
+        elif "bash" in lang or "sh" in lang or "shell" in lang or "zsh" in lang:
+            inner = highlight_bash(inner)
+        elif "json" in lang:
+            inner = highlight_json(inner)
+        elif "yaml" in lang or "yml" in lang:
+            inner = highlight_yaml(inner)
         return f'<pre><code class="language-{lang}">{inner}</code></pre>'
 
     return PRE_CODE_RE.sub(replace_block, html_text)

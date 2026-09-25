@@ -96,6 +96,59 @@ def rewrite_md_links(html_text, current_slug, slug_page_keys):
     return re.sub(r'href=(["\'])([^"\']+?\.md)(\?[^"\']*?)?(#[^"\']*)?\1', _repl, html_text)
 
 
+def auto_link_filenames(html_text, current_slug, slug_page_keys):
+    """Auto-link bare filename references like `config.json` to their .md pages.
+
+    Only processes filenames INSIDE inline code tags (<code>...</code>).
+    Looks for patterns like `config.json`, `config.yml`, `config.yaml`, `script.sh`, etc.
+    that correspond to existing .md files in the documentation.
+    """
+    if not slug_page_keys:
+        return html_text
+
+    # Build a map of filename (without .md) -> output HTML file
+    filename_map = {}
+    for slug, key in slug_page_keys.items():
+        # slug is like "config.json" or "guides/config.json"
+        # Extract the filename without .md extension
+        filename = slug.rsplit("/", 1)[-1]
+        if filename:
+            filename_map[filename.lower()] = slug_output_name(slug)
+
+    if not filename_map:
+        return html_text
+
+    # Sort by length descending to match longer filenames first
+    sorted_filenames = sorted(filename_map.keys(), key=len, reverse=True)
+    escaped_filenames = [re.escape(fn) for fn in sorted_filenames]
+    filename_pattern = "|".join(escaped_filenames)
+
+    # Pattern to match <code>filename</code> where filename is in our map
+    # We'll find all <code>...</code> blocks and process their content
+    code_pattern = re.compile(r"(<code[^>]*>)(.*?)(</code>)", flags=re.DOTALL)
+
+    def _process_code_block(m):
+        before = m.group(1)  # <code...>
+        content = m.group(2)  # inner content
+        after = m.group(3)    # </code>
+
+        # Replace filenames in the content
+        # Pattern: word boundary, then filename (with escaped dots), then word boundary
+        pattern = r"(?<![a-zA-Z0-9_-])(" + filename_pattern + r")\b(?![a-zA-Z0-9_-])"
+
+        def _repl(fn_match):
+            matched = fn_match.group(1)
+            target_slug = filename_map.get(matched.lower())
+            if target_slug:
+                return f'<a href="{target_slug}" class="filename-reference">{html.escape(matched)}</a>'
+            return matched
+
+        new_content = re.sub(pattern, _repl, content, flags=re.IGNORECASE)
+        return before + new_content + after
+
+    return code_pattern.sub(_process_code_block, html_text)
+
+
 def should_absolutize_url(raw_url):
     if not raw_url:
         return False
@@ -213,7 +266,7 @@ def _process_code_refs_in_html_block(block_html, start_counter):
             }
         )
 
-        return f'<a href="#coderef-{ref_id}" class="code-reference" data-coderef-id="{ref_id}" data-coderef-file="{html.escape(file_path, quote=True)}" data-coderef-line="{line if line else ""}">{html.escape(link_text)}</a>'
+        return f'<a href="#coderef-{ref_id}" class="code-reference" data-coderef-id="{ref_id}" data-coderef-file="{html.escape(file_path, quote=True)}" data-coderef-line="{line or ""}">{html.escape(link_text)}</a>'
 
     processed = CODE_REF_RE.sub(_repl, block_html)
     return processed, code_refs
