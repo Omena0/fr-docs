@@ -21,6 +21,9 @@ TEMPLATE = """\
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..800&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+  <link rel="preload" as="font" href="https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmM.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="font" href="https://fonts.gstatic.com/s/inter/v20/UcCo3FwrK3iLTcviYwYZ8UA3.woff2" type="font/woff2" crossorigin>
+  <link rel="preload" as="font" href="https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0P.woff2" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{site_prefix}style.css">
 </head>
 <body>
