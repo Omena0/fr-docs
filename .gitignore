@@ -5,3 +5,4 @@ site
 .venv
 .ruff_cache
 .env
+node_modules

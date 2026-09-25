@@ -19,10 +19,9 @@ inputs:
     description: 'Path to npm lockfile'
     required: false
     default: 'package-lock.json'
-  node-tools:
+node-tools:
     description: 'Space-separated npm packages to install for the build'
-    required: false
-    default: 'html-minifier-next@8.5.3 critical@9.0.0'
+    default: 'html-minifier-next@8.5.3 critical@9.0.0 terser@5.24.0'
   docs-dir:
     description: 'Directory containing fr-docs config.json and src/'
     required: false

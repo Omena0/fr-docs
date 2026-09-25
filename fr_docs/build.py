@@ -8,8 +8,11 @@ import argparse
 import concurrent.futures
 import json
 import os
+import re
 import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import xxhash
@@ -40,6 +43,76 @@ from .utils import normalized_site_prefix
 def _compute_hash(data: str) -> str:
     """Compute xxhash hash of string data."""
     return xxhash.xxh3_128_hexdigest(data.encode("utf-8"))
+
+
+def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
+    """Minify a static asset in-place (JS via terser, CSS via html-minifier).
+
+    Falls back to a plain copy if the minifier is unavailable. CSS is minified
+    by wrapping it in a `<style>` tag (html-minifier-next only processes CSS
+    embedded in HTML) and stripping the wrapper afterwards.
+    """
+    repo_root = Path(config["_docs_dir"]).resolve().parent
+    node_modules = repo_root / "node_modules"
+
+    if name.endswith(".js"):
+        terser_bin = node_modules / ".bin" / "terser"
+        cmd = [
+            str(terser_bin) if terser_bin.exists() else "npx",
+            "--yes" if not terser_bin.exists() else "",
+            *(["terser"] if not terser_bin.exists() else []),
+            str(src),
+            "--compress",
+            "warnings=false",
+            "--mangle",
+            "--output",
+            str(dst),
+        ]
+        cmd = [c for c in cmd if c]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, cwd=str(repo_root))
+        if result.returncode != 0 or not dst.exists() or dst.stat().st_size == 0:
+            print(f"  ! minify failed for {name}, copying raw: {result.stderr[-300:]}")
+            shutil.copyfile(src, dst)
+        return
+
+    # CSS: html-minifier-next only minifies CSS embedded in HTML, so wrap the
+    # stylesheet in a <style> tag, minify, then strip the wrapper.
+    minifier_bin = node_modules / ".bin" / "html-minifier-next"
+    raw_css = src.read_text(encoding="utf-8")
+    wrapped = f"<style>{raw_css}</style>"
+    wrapper = Path(tempfile.mkstemp(suffix=".html")[1])
+    min_out = Path(tempfile.mkstemp(suffix=".html")[1])
+    try:
+        wrapper.write_text(wrapped, encoding="utf-8")
+        cmd = [
+            str(minifier_bin) if minifier_bin.exists() else "npx",
+            "--yes" if not minifier_bin.exists() else "",
+            *(["html-minifier-next"] if not minifier_bin.exists() else ""),
+            "--minify-css=true",
+            "--remove-comments",
+            "--output",
+            str(min_out),
+            str(wrapper),
+        ]
+        cmd = [c for c in cmd if c]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False, cwd=str(repo_root))
+        if result.returncode == 0 and min_out.exists():
+            out = min_out.read_text(encoding="utf-8")
+            m = re.search(r"<style>([\s\S]*)</style>", out)
+            if m:
+                dst.write_text(m.group(1), encoding="utf-8")
+                return
+        print(f"  ! minify failed for {name}, copying raw: {result.stderr[-300:]}")
+    finally:
+        try:
+            wrapper.unlink()
+        except OSError:
+            pass
+        try:
+            min_out.unlink()
+        except OSError:
+            pass
+    shutil.copyfile(src, dst)
 
 
 class BuildCache:
@@ -287,7 +360,7 @@ def main(argv=None):
         config["_source_files"] = source_files
         print(f"   Found {len(source_files)} source files")
 
-    # Copy static assets
+    # Copy static assets (minifying JS/CSS when production)
     docs_path = Path(config["_docs_dir"])
     os.makedirs(Path(config["_out_dir"]), exist_ok=True)
     for legacy_name in (
@@ -303,7 +376,10 @@ def main(argv=None):
         dst = Path(config["_out_dir"]) / name
 
         try:
-            shutil.copyfile(src, dst)
+            if config.get("production", False) and name.endswith((".js", ".css")):
+                _minify_static_asset(config, src, dst, name)
+            else:
+                shutil.copyfile(src, dst)
         except FileNotFoundError:
             print(f"File not found: {os.getcwd()}, {src}->{dst}")
         except OSError as e:
