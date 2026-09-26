@@ -1275,24 +1275,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function showCodePanel(ref) {
     const fileContent = sourceFiles[ref.file];
     if (!fileContent) {
-      // Try to fetch the file directly
-      fetch(toSiteHref(ref.file), { cache: 'force-cache' })
-        .then(r => r.ok ? r.text() : null)
-        .then(content => {
-          if (content) {
-            sourceFiles[ref.file] = content;
-            const panel = createCodePanel(ref, content);
-            document.body.appendChild(panel);
-            document.body.classList.add('code-panel-open');
-            // Scroll to target line
-            requestAnimationFrame(() => {
-              const targetLine = panel.querySelector('.highlight-target');
-              if (targetLine) targetLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            });
-          } else {
-            console.warn(`Could not load source file: ${ref.file}`);
-          }
-        });
+      // Source files are already loaded from source_files.zst at build
+      // time. If the file isn't there, it doesn't exist — don't try to
+      // fetch it from the site root (that would produce a 404 like
+      // /fr-docs/fr_docs/syntax.py).
+      console.warn(`Source file not found in index: ${ref.file}`);
       return;
     }
 
