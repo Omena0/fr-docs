@@ -203,6 +203,6 @@ def project_url(config):
     return config.get("project_url", "")
 
 
-def src_map_path(config):
+def src_map_path(config) -> str:
     """Return the source markdown path pattern used in git metadata."""
     return f"{src_dir(config)}/{{slug}}.md"

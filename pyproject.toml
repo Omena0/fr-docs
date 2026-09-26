@@ -54,3 +54,70 @@ fr-docs = "fr_docs.build:main"
 
 [tool.setuptools.packages.find]
 include = ["fr_docs*"]
+
+[tool.ruff.lint]
+extend-select = [
+    # Refactoring / simplification
+    "SIM",       # flake8-simplify
+    "C4",        # flake8-comprehensions
+    "RET",       # flake8-return
+    "PIE",       # flake8-pie
+    "FURB",      # refurb
+
+    # Modern Python
+    "UP",        # pyupgrade
+    "FA",        # future-annotations
+    "I",         # isort
+
+    # Bug / correctness detection
+    "B",         # flake8-bugbear
+    "A",         # flake8-builtins
+    "BLE",       # blind-except
+    "PLE",       # pylint errors
+    "S",         # flake8-bandit
+    "TRY",       # tryceratops
+
+    # Type / API quality
+    "ANN",       # flake8-annotations
+    "ARG",       # unused arguments
+    "TC",        # type-checking imports
+    "PYI",       # .pyi quality
+
+    # Complexity / performance
+    "C90",       # mccabe complexity
+    "PERF",      # perflint
+    "PLR",       # pylint refactoring
+
+    # Python-specific style / quality
+    "N",         # pep8-naming
+    "SLF",       # private member access
+    "SLOT",      # __slots__
+    "ERA",       # commented-out code
+
+    # Logging / strings / misc.
+    "LOG",       # logging
+    "G",         # logging format
+    "ISC",       # implicit string concatenation
+    "RSE",       # raise statements
+    "EM",        # exception messages
+]
+
+extend-ignore = [
+    "TRY300",
+    "PLR2004",
+    "S310",
+    "S101",
+    "S603",
+    "S607",
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "G004"
+]
+
+mccabe.max-complexity = 15
+pylint.max-branches = 15
+pylint.max-statements = 200
+
+fixable = ["ALL"]
+

@@ -65,9 +65,11 @@ def download_font(url: str, dest: Path) -> bool:
             data = resp.read()
         if len(data) < 1000:
             return False
+
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(data)
         return True
+
     except Exception as exc:  # noqa: BLE001
         print(f"  ! failed to download {url}: {exc}", file=sys.stderr)
         return False
@@ -106,7 +108,7 @@ def main() -> int:
     print(f"Found {len(faces)} font-face rules")
 
     local_rules = []
-    for family, style, weight, display, src_url, fmt in faces:
+    for family, style, weight, _display, src_url, fmt in faces:
         # Strip quotes from the URL if present
         src_url = src_url.strip().strip("'\"")
         # Derive a stable local filename from the URL basename

@@ -71,7 +71,7 @@ def load_config(config_path=None):
     config = DEFAULT_CONFIG
     project_name_specified = False
     if config_path.exists():
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             loaded = json.load(f)
         config = _merge(DEFAULT_CONFIG, loaded)
         project_name_specified = "project_name" in loaded

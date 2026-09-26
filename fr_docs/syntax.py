@@ -61,7 +61,7 @@ def _highlight_fragment(code, language):
 def _protect_html_links(code):
     links = []
 
-    def replace(match):
+    def replace(match) -> str:
         links.append(match.group(0))
         return f"___FRDOC_LINK_{len(links) - 1}___"
 
@@ -78,7 +78,7 @@ def highlight_code_blocks(html_text):
     """Apply fastpylight highlighting to fenced code blocks."""
     for_match = PRE_CODE_RE.pattern
 
-    def replace_block(match):
+    def replace_block(match) -> str:
         language = match.group(1) or ""
         inner = match.group(2)
         protected, links = _protect_html_links(inner)

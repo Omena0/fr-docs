@@ -14,7 +14,7 @@ from .build import main as build_main
 from .init import main as init_main
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="fr-docs", description="Fast static documentation generator"
     )
@@ -66,19 +66,18 @@ def main():
         build_main(build_argv)
     elif args.command == "init":
         init_main(args.dir)
+    # Default to build for backwards compatibility
+    elif len(sys.argv) > 1 and sys.argv[1] in (
+        "--production",
+        "--symlink",
+        "--config",
+        "--help",
+        "-h",
+    ):
+        build_main(sys.argv[1:])
     else:
-        # Default to build for backwards compatibility
-        if len(sys.argv) > 1 and sys.argv[1] in (
-            "--production",
-            "--symlink",
-            "--config",
-            "--help",
-            "-h",
-        ):
-            build_main(sys.argv[1:])
-        else:
-            parser.print_help()
-            sys.exit(1)
+        parser.print_help()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

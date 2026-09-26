@@ -123,7 +123,7 @@ def resolve_md_target(md_target, current_slug, slug_page_keys):
 def rewrite_md_links(html_text, current_slug, slug_page_keys):
     """Rewrite internal .md links to output HTML filenames."""
 
-    def _repl(m):
+    def _repl(m) -> str:
         # Match both double and single quotes
         quote = m.group(1)
         target = m.group(2)
@@ -138,7 +138,7 @@ def rewrite_md_links(html_text, current_slug, slug_page_keys):
     )
 
 
-def auto_link_filenames(html_text, current_slug, slug_page_keys):
+def auto_link_filenames(html_text, slug_page_keys):
     """Auto-link bare filename references like `config.json` to their .md pages.
 
     Only processes filenames INSIDE inline code tags (<code>...</code>).
@@ -173,11 +173,11 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
     pre_code_blocks = []
     copy_cmd_blocks = []
 
-    def _protect_pre_code(m):
+    def _protect_pre_code(m) -> str:
         pre_code_blocks.append(m.group(1))
         return f"@@PRECODE{len(pre_code_blocks) - 1}@@"
 
-    def _protect_copy_cmd(m):
+    def _protect_copy_cmd(m) -> str:
         copy_cmd_blocks.append(m.group(1))
         return f"@@COPYCMD{len(copy_cmd_blocks) - 1}@@"
 
@@ -215,9 +215,8 @@ def auto_link_filenames(html_text, current_slug, slug_page_keys):
         return copy_cmd_blocks[int(m.group(1))]
 
     processed_text = re.sub(r"@@PRECODE(\d+)@@", _restore_pre_code, processed_text)
-    processed_text = re.sub(r"@@COPYCMD(\d+)@@", _restore_copy_cmd, processed_text)
+    return re.sub(r"@@COPYCMD(\d+)@@", _restore_copy_cmd, processed_text)
 
-    return processed_text
 
 
 def strip_code_refs_outside_code_blocks(html_text):
@@ -232,7 +231,7 @@ def strip_code_refs_outside_code_blocks(html_text):
     )
     pre_code_blocks = []
 
-    def _protect(m):
+    def _protect(m) -> str:
         pre_code_blocks.append(m.group(1))
         return f"@@PRECODE{len(pre_code_blocks) - 1}@@"
 
@@ -245,7 +244,7 @@ def strip_code_refs_outside_code_blocks(html_text):
         flags=re.IGNORECASE,
     )
 
-    def _repl(m):
+    def _repl(m) -> str:
         link_text = m.group(4)
         return f'<span class="code-reference-plain">{html.escape(link_text)}</span>'
 
@@ -258,7 +257,7 @@ def strip_code_refs_outside_code_blocks(html_text):
     return re.sub(r"@@PRECODE(\d+)@@", _restore, processed)
 
 
-def should_absolutize_url(raw_url):
+def should_absolutize_url(raw_url) -> bool:
     if not raw_url:
         return False
     value = raw_url.strip()
@@ -330,7 +329,7 @@ def process_code_references_html(html_text, config):
     pre_code_pat = re.compile(r"(<pre><code[^>]*>[\s\S]*?</code></pre>)")
     pre_code_blocks = []
 
-    def _protect(m):
+    def _protect(m) -> str:
         pre_code_blocks.append(m.group(1))
         return f"@@PRECODE{len(pre_code_blocks) - 1}@@"
 
@@ -338,7 +337,7 @@ def process_code_references_html(html_text, config):
 
     # Process code references OUTSIDE code blocks (regular <a> links)
     # Pattern: <a href="file.py:123">text</a>
-    def _repl_outside(m):
+    def _repl_outside(m) -> str:
         file_path = m.group("file")
         location = m.group("location")
         link_text = m.group("link_text")
@@ -381,7 +380,7 @@ def _process_code_refs_in_html_block(block_html, start_counter):
     code_refs = []
     ref_counter = start_counter
 
-    def _repl(m):
+    def _repl(m) -> str:
         nonlocal ref_counter
         link_text = m.group("link_text")
         file_path = m.group("file")
@@ -414,7 +413,7 @@ def auto_link_markdown(md_text, search_map):
     code_fence_pat = re.compile(r"```[\s\S]*?```")
     code_fences = []
 
-    def _cf(m):
+    def _cf(m) -> str:
         code_fences.append(m.group(0))
         return f"@@CODEFENCE{len(code_fences) - 1}@@"
 
@@ -423,7 +422,7 @@ def auto_link_markdown(md_text, search_map):
     inline_code_pat = re.compile(r"(?<!\w)(c?)`([^`]*?)`")
     inline_codes = []
 
-    def _ic(m):
+    def _ic(m) -> str:
         has_c = m.group(1) == "c"
         inline_codes.append((m.group(2), has_c))
         return f"@@INLINECODE{len(inline_codes) - 1}@@"
@@ -433,13 +432,13 @@ def auto_link_markdown(md_text, search_map):
     link_pat = re.compile(r"\[[^\]]+\]\([^\)]+\)")
     links = []
 
-    def _ln(m):
+    def _ln(m) -> str:
         links.append(m.group(0))
         return f"@@LINK{len(links) - 1}@@"
 
     text = link_pat.sub(_ln, text)
 
-    def _transform_inline_content(content, has_c):
+    def _transform_inline_content(content, has_c) -> str:
         if has_c:
             # content is already without the 'c' prefix
             esc = html.escape(content)
@@ -463,6 +462,5 @@ def auto_link_markdown(md_text, search_map):
 
     text = re.sub(r"@@INLINECODE(\d+)@@", _restore_inline, text)
 
-    text = re.sub(r"@@CODEFENCE(\d+)@@", lambda m: code_fences[int(m.group(1))], text)
+    return re.sub(r"@@CODEFENCE(\d+)@@", lambda m: code_fences[int(m.group(1))], text)
 
-    return text

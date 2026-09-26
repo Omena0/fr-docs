@@ -6,6 +6,7 @@ Converts Markdown source files into a static HTML site using configuration.
 
 import argparse
 import concurrent.futures
+import contextlib
 import json
 import os
 import re
@@ -127,21 +128,17 @@ def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
                 return
         print(f"  ! minify failed for {name}, copying raw: {result.stderr[-300:]}")
     finally:
-        try:
+        with contextlib.suppress(OSError):
             wrapper.unlink()
-        except OSError:
-            pass
-        try:
+        with contextlib.suppress(OSError):
             min_out.unlink()
-        except OSError:
-            pass
     shutil.copyfile(src, dst)
 
 
 class BuildCache:
     """Manage caching of build data to avoid unnecessary regeneration."""
 
-    def __init__(self, cache_path: str):
+    def __init__(self, cache_path: str) -> None:
         self.cache_path = Path(cache_path)
         self.cache = self._load_cache()
 
@@ -150,12 +147,12 @@ class BuildCache:
         if not self.cache_path.exists():
             return {}
         try:
-            with open(self.cache_path, "r", encoding="utf-8") as f:
+            with open(self.cache_path, encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError, OSError:
             return {}
 
-    def _save_cache(self):
+    def _save_cache(self) -> None:
         """Save the build cache to disk."""
         with open(self.cache_path, "w", encoding="utf-8") as f:
             json.dump(self.cache, f, separators=(",", ":"))
@@ -165,7 +162,7 @@ class BuildCache:
         cached_hash = self.cache.get(key)
         return True if cached_hash is None else cached_hash != current_hash
 
-    def update_cache(self, key: str, new_hash: str):
+    def update_cache(self, key: str, new_hash: str) -> None:
         """Update cache with new hash."""
         self.cache[key] = new_hash
         self._save_cache()
@@ -340,9 +337,10 @@ def collect_source_files(config):
     return source_files
 
 
-def main(argv=None):
+def main(argv=None) -> None:
     if argv is not None and argv and argv[0] == "build":
         argv = argv[1:]
+
     elif argv is None and (
         Path(sys.argv[0]).name == "fr-docs"
         and len(sys.argv) > 1

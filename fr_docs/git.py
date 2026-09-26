@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from .config_accessors import git_meta_filename, live_label, src_dir, out_dir
+from .config_accessors import git_meta_filename, live_label, out_dir, src_dir
 from .slug import slug_page_key
 
 
@@ -25,114 +25,105 @@ def collect_git_metadata(config):
         "src_path": src_map_path(config).replace("{slug}", ""),
     }
 
-    try:
-        repo_root = Path(config["_docs_dir"]).parent
+    repo_root = Path(config["_docs_dir"]).parent
 
-        try:
-            remote_url = subprocess.check_output(
-                ["git", "remote", "get-url", "origin"],
-                cwd=repo_root,
-                text=True,
-            ).strip()
-        except FileNotFoundError, subprocess.CalledProcessError:
-            remote_url = ""
+    remote_url = subprocess.check_output(
+        ["git", "remote", "get-url", "origin"],
+        cwd=repo_root,
+        text=True,
+    ).strip()
 
-        m = re.search(r"github.com[:/](.+?)(?:\.git)?$", remote_url)
+    m = re.search(r"github.com[:/](.+?)(?:\.git)?$", remote_url)
+    if m:
+        git_meta["repo"] = m[1]
+
+    log_out = subprocess.check_output(
+        ["git", "log", "--pretty=format:%H%x01%s", "--reverse"],
+        cwd=repo_root,
+        text=True,
+    )
+
+    for line in log_out.splitlines():
+        if not line:
+            continue
+
+        parts = line.split("\x01", 1)
+
+        if len(parts) == 2:
+            h, msg = parts
+
+        else:
+            h = parts[0]
+            msg = ""
+
+        git_meta["commits"].append(h)
+        m = re.match(r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)", msg)
+
         if m:
-            git_meta["repo"] = m.group(1)
-
-        try:
-            log_out = subprocess.check_output(
-                ["git", "log", "--pretty=format:%H%x01%s", "--reverse"],
-                cwd=repo_root,
-                text=True,
-            )
-            for line in log_out.splitlines():
-                if not line:
-                    continue
-                parts = line.split("\x01", 1)
-                if len(parts) == 2:
-                    h, msg = parts
-                else:
-                    h = parts[0]
-                    msg = ""
-                git_meta["commits"].append(h)
-                m = re.match(r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)", msg)
-                if m:
-                    code = m.group(1).upper()
-                    label = m.group(2).strip()
-                    git_meta["versions"].append(
-                        {"code": code, "commit": h, "label": label}
-                    )
-        except FileNotFoundError, subprocess.CalledProcessError:
-            pass
-
-        slugs = list(config.get("_slug_page_keys", {}).keys())
-        for slug in slugs:
-            git_meta["src_map"][slug_page_key(slug, config)] = (
-                src_map_path(config).replace("{slug}", slug)
+            code = m.group(1).upper()
+            label = m.group(2).strip()
+            git_meta["versions"].append(
+                {"code": code, "commit": h, "label": label}
             )
 
-        # Populate pages_by_commit: which slugs exist at each commit.
-        # Used by the client to filter the sidebar when viewing a
-        # historical version.
-        if slugs:
-            try:
-                slugs_arg = "\n".join(slugs)
-                out = subprocess.check_output(
-                    [
-                        "git", "log", "--pretty=format:%H",
-                        "--name-only", "--",
-                    ]
-                    + [src_map_path(config).replace("{slug}", s) for s in slugs],
-                    cwd=repo_root,
-                    text=True,
-                    stderr=subprocess.DEVNULL,
-                )
-                current_commit = None
-                for line in out.splitlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    if re.fullmatch(r"[0-9a-f]{7,40}", line):
-                        current_commit = line
-                    elif current_commit:
-                        # line is a source path like "src/index.md"
-                        slug = Path(line).stem
-                        if slug in slugs:
-                            git_meta["pages_by_commit"].setdefault(
-                                current_commit, []
-                            ).append(slug)
-            except (FileNotFoundError, subprocess.CalledProcessError, OSError):
-                pass
+    slugs = list(config.get("_slug_page_keys", {}).keys())
+    for slug in slugs:
+        git_meta["src_map"][slug_page_key(slug, config)] = (
+            src_map_path(config).replace("{slug}", slug)
+        )
 
-        # Also record which commit each slug was last modified at, so the
-        # client can fall back to a single-commit lookup.
-        if slugs:
-            try:
-                for slug in slugs:
-                    src = src_map_path(config).replace("{slug}", slug)
-                    try:
-                        out = subprocess.check_output(
-                            ["git", "log", "-1", "--pretty=format:%H", "--", src],
-                            cwd=repo_root,
-                            text=True,
-                            stderr=subprocess.DEVNULL,
-                        ).strip()
-                        if out and re.fullmatch(r"[0-9a-f]{7,40}", out):
-                            git_meta.setdefault("slug_last_commit", {})[slug] = out
-                    except (FileNotFoundError, subprocess.CalledProcessError):
-                        pass
-            except (FileNotFoundError, subprocess.CalledProcessError, OSError):
-                pass
+    # Populate pages_by_commit: which slugs exist at each commit.
+    # Used by the client to filter the sidebar when viewing a
+    # historical version.
+    if not slugs:
+        return git_meta
 
-    except FileNotFoundError, subprocess.CalledProcessError, OSError:
-        pass
+    out = subprocess.check_output(
+        [
+            "git", "log", "--pretty=format:%H",
+            "--name-only", "--",
+        ]
+        + [src_map_path(config).replace("{slug}", s) for s in slugs],
+        cwd=repo_root,
+        text=True,
+        stderr=subprocess.DEVNULL,
+    )
+
+    current_commit = None
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        if re.fullmatch(r"[0-9a-f]{7,40}", line):
+            current_commit = line
+
+        elif current_commit:
+            # line is a source path like "src/index.md"
+            slug = Path(line).stem
+            if slug in slugs:
+                git_meta["pages_by_commit"].setdefault(
+                    current_commit, []
+                ).append(slug)
+
+    # Also record which commit each slug was last modified at, so the
+    # client can fall back to a single-commit lookup.
+    for slug in slugs:
+        src = src_map_path(config).replace("{slug}", slug)
+        out = subprocess.check_output(
+            ["git", "log", "-1", "--pretty=format:%H", "--", src],
+            cwd=repo_root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+
+        if out and re.fullmatch(r"[0-9a-f]{7,40}", out):
+            git_meta.setdefault("slug_last_commit", {})[slug] = out
 
     return git_meta
 
 
-def src_map_path(config):
+def src_map_path(config) -> str:
     """Return the source markdown path relative to the repo root.
 
     e.g. ``docs/src/{slug}.md``. The client uses this to fetch
@@ -144,7 +135,7 @@ def src_map_path(config):
     return f"{rel}/{{slug}}.md"
 
 
-def write_git_metadata(git_meta, config):
+def write_git_metadata(git_meta, config) -> None:
     """Write git metadata to disk."""
     try:
         with open(
@@ -185,15 +176,14 @@ def build_version_options(git_meta, config):
                         f'  {esc_code}'
                         f'</option>'
                     )
-        else:
-            if git_meta["commits"]:
-                latest = git_meta["commits"][-1]
-                esc_commit = html.escape(latest[:8])
-                opts.append(
-                    f'<option value="{latest}" data-commit="{esc_commit}">'
-                    f'  {esc_commit}'
-                    f'</option>'
-                )
+        elif git_meta["commits"]:
+            latest = git_meta["commits"][-1]
+            esc_commit = html.escape(latest[:8])
+            opts.append(
+                f'<option value="{latest}" data-commit="{esc_commit}">'
+                f'  {esc_commit}'
+                f'</option>'
+            )
 
         config["_version_options"] = "\n".join(opts)
     except KeyError, TypeError, AttributeError:

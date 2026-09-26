@@ -20,5 +20,5 @@ def output_href(path, config):
     return prefix + clean if prefix else clean
 
 
-def output_site_prefix(config):
+def output_site_prefix(config: dict) -> str:
     return normalized_site_prefix(config) if config.get("production", False) else ""

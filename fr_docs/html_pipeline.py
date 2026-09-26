@@ -1,5 +1,6 @@
 """HTML pipeline: optimization, minification, and page building for fr-docs."""
 
+import contextlib
 import datetime
 import json
 import logging
@@ -17,7 +18,6 @@ from .config_accessors import (
     features_state,
     footer_text,
     header_links,
-    out_dir,
     project_name,
     sidebar,
 )
@@ -78,7 +78,7 @@ def _render_template_placeholders(config):
     def _get_copyright_holder():
         return copyright_holder(config)
 
-    def _get_version_selector_html():
+    def _get_version_selector_html() -> str:
         if not feature_enabled(config, "versioning"):
             return ""
         return (
@@ -89,7 +89,7 @@ def _render_template_placeholders(config):
             '</div>'
         )
 
-    def _get_header_search_html():
+    def _get_header_search_html() -> str:
         if not feature_enabled(config, "search"):
             return ""
         return (
@@ -118,7 +118,7 @@ def _render_template_placeholders(config):
             f" &middot; {project_name(config)} Documentation"
         )
 
-    def _get_search_preloads_html():
+    def _get_search_preloads_html() -> str:
         return ""
 
     return {
@@ -145,7 +145,7 @@ def _render_template_placeholders(config):
     }
 
 
-def should_absolutize_url(raw_url):
+def should_absolutize_url(raw_url) -> bool:
     if not raw_url:
         return False
     value = raw_url.strip()
@@ -189,7 +189,7 @@ def absolutize_links(html_text, page_url, config):
     return URL_ATTR_RE.sub(_repl, html_text)
 
 
-def optimize_html(html_input, config):
+def optimize_html(html_input):
     """Legacy single-file optimizer — kept for backwards compat.
 
     critical only resolves <link rel=stylesheet> URLs when run on a
@@ -242,14 +242,14 @@ def minify_html(html_input, config):
     return minified_html
 
 
-def build_page(slug, config, slug_page_keys):
+def build_page(slug, config, slug_page_keys) -> None:
     """Build a single page from its markdown source."""
     src_path = os.path.join(config["_src_dir"], f"{slug}.md")
     if not os.path.exists(src_path):
         print(f"  ⚠ Skipping {slug}.md (not found)")
         return
 
-    with open(src_path, "r", encoding="utf-8") as f:
+    with open(src_path, encoding="utf-8") as f:
         raw = f.read()
 
     meta, body_md = parse_frontmatter(raw)
@@ -267,7 +267,7 @@ def build_page(slug, config, slug_page_keys):
     # Auto-link bare filename references (e.g., config.json -> config.json.md)
     if feature_enabled(config, "auto_link"):
         body_html = auto_link_filenames(
-            body_html, slug, config.get("_slug_page_keys", {})
+            body_html, config.get("_slug_page_keys", {})
         )
 
     # Process code references (in HTML, after markdown conversion)
@@ -309,7 +309,7 @@ def build_page(slug, config, slug_page_keys):
             and not no_backlinks
         ):
             backlinks_html = _render_backlinks(
-                page_data["backlinks"], search_index, config
+                page_data["backlinks"], search_index
             )
             if has_backlinks_tag:
                 # Replace both paragraph-wrapped and bare tag
@@ -322,7 +322,7 @@ def build_page(slug, config, slug_page_keys):
             and page_data.get("related")
             and not no_related
         ):
-            related_html = _render_related(page_data["related"], search_index, config)
+            related_html = _render_related(page_data["related"], search_index)
             if has_related_tag:
                 # Replace both paragraph-wrapped and bare tag
                 body_html = body_html.replace("<p><related></p>", related_html)
@@ -367,7 +367,7 @@ def build_page(slug, config, slug_page_keys):
         f.write(out_html)
 
 
-def optimize_all_pages(config):
+def optimize_all_pages(config) -> None:
     """Inline critical-path CSS into every production HTML page.
 
     critical only resolves <link rel=stylesheet> URLs when run on a
@@ -444,14 +444,16 @@ def optimize_all_pages(config):
                 cmd, capture_output=True, text=True, check=False, cwd=str(out_dir)
             )
             if result.returncode != 0:
+                msg = f"Critical failed for {html_file.name}:\n{result.stderr}"
                 raise RuntimeError(
-                    f"Critical failed for {html_file.name}:\n{result.stderr}"
+                    msg
                 )
 
             optimized = result.stdout
             if "</html>" not in optimized:
+                msg = f"Critical output for {html_file.name} looks truncated"
                 raise RuntimeError(
-                    f"Critical output for {html_file.name} looks truncated"
+                    msg
                 )
 
             html_file.write_text(optimized, encoding="utf-8")
@@ -472,13 +474,11 @@ def optimize_all_pages(config):
                         )
                 except OSError:
                     pass
-            try:
+            with contextlib.suppress(OSError):
                 backup.unlink()
-            except OSError:
-                pass
 
 
-def minify_all_pages(config):
+def minify_all_pages(config) -> None:
     """Minify every production HTML page after critical has inlined CSS."""
     if not config.get("production", False):
         return
@@ -549,7 +549,7 @@ def add_internal_prefetch_links(html_text, config):
 logger = logging.getLogger(__name__)
 
 
-def _render_backlinks(backlinks, search_index, config):
+def _render_backlinks(backlinks, search_index) -> str:
     """Render backlinks HTML."""
     if not backlinks:
         return ""
@@ -574,7 +574,7 @@ def _render_backlinks(backlinks, search_index, config):
     )
 
 
-def _render_related(related, search_index, config):
+def _render_related(related, search_index) -> str:
     """Render related pages HTML."""
     if not related:
         return ""

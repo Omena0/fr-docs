@@ -293,7 +293,7 @@ jobs:
 """
 
 
-def download_file(url, dest_path):
+def download_file(url, dest_path) -> bool | None:
     """Download a file from URL to dest_path."""
     try:
         print(f"  Downloading {url}...")
@@ -307,7 +307,7 @@ def download_file(url, dest_path):
         return False
 
 
-def create_uv_venv(docs_dir):
+def create_uv_venv(docs_dir) -> None:
     """Create a uv virtual environment on Linux if uv is installed."""
     if platform.system() != "Linux":
         return
@@ -338,7 +338,7 @@ def create_uv_venv(docs_dir):
         print(f"  ✗ Failed to create virtual environment: {e}")
 
 
-def create_github_workflow(docs_dir):
+def create_github_workflow(docs_dir) -> None:
     """Create .github/workflows/pages.yml for GitHub Pages deployment."""
     workflow_dir = docs_dir.parent / ".github" / "workflows"
     workflow_dir.mkdir(parents=True, exist_ok=True)
@@ -355,7 +355,7 @@ def create_github_workflow(docs_dir):
         print(f"  ✗ Failed to create GitHub workflow: {e}")
 
 
-def create_default_files(docs_dir, project_name):
+def create_default_files(docs_dir, project_name) -> None:
     """Create default markdown files in src directory."""
     src_dir = docs_dir / "src"
     src_dir.mkdir(parents=True, exist_ok=True)
@@ -373,7 +373,7 @@ def create_default_files(docs_dir, project_name):
         print(f"  ✓ Created {filepath}")
 
 
-def main(docs_dir_str="docs"):
+def main(docs_dir_str="docs") -> None:
     """Initialize a new documentation project."""
     docs_dir = Path(docs_dir_str).resolve()
 

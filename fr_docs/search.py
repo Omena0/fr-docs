@@ -282,18 +282,17 @@ def _parse_search_sections(body_md):
 
             continue
 
-        else:
-            if in_table and table_first_cols:
-                sections.append(
-                    {
-                        "heading": current_heading,
-                        "text": ", ".join(table_first_cols),
-                    }
-                )
-                table_first_cols = []
+        if in_table and table_first_cols:
+            sections.append(
+                {
+                    "heading": current_heading,
+                    "text": ", ".join(table_first_cols),
+                }
+            )
+            table_first_cols = []
 
-            in_table = False
-            table_header_seen = False
+        in_table = False
+        table_header_seen = False
 
         if stripped.startswith("#"):
             current_heading = stripped.lstrip("#").strip()
@@ -335,7 +334,7 @@ def _extract_links(body_md):
 
 
 def _resolve_link(
-    link, current_slug, slug_to_source, slug_to_idx, config, search_index
+    link, current_slug, slug_to_source, search_index
 ):
     """Resolve a link to a target slug."""
     # Try direct match
@@ -355,18 +354,19 @@ def _resolve_link(
     return None
 
 
-def _compute_backlinks_and_related(search_index, config):
+def _compute_backlinks_and_related(search_index, config) -> None:
     """Compute backlinks and related pages for each page."""
     # Build a map of page slugs to their index
-    slug_to_idx = {item["slug"]: i for i, item in enumerate(search_index)}
+    {item["slug"]: i for i, item in enumerate(search_index)}
     slug_to_source = {item["source_slug"]: i for i, item in enumerate(search_index)}
 
     # First pass: collect all links from each page
     page_links = {}  # slug -> set of target slugs
     for item in search_index:
         src = os.path.join(config["_src_dir"], f"{item['source_slug']}.md")
+
         if os.path.exists(src):
-            with open(src, "r", encoding="utf-8") as f:
+            with open(src, encoding="utf-8") as f:
                 raw = f.read()
 
             _, body_md = parse_frontmatter(raw)
@@ -380,11 +380,10 @@ def _compute_backlinks_and_related(search_index, config):
                     link,
                     item["source_slug"],
                     slug_to_source,
-                    slug_to_idx,
-                    config,
                     search_index,
                 ):
                     resolved.add(resolved_slug)
+
             page_links[item["slug"]] = resolved
 
     # Compute backlinks (reverse links)
@@ -398,13 +397,17 @@ def _compute_backlinks_and_related(search_index, config):
     for item in search_index:
         # Pages that link to the same targets
         source_links = page_links.get(item["slug"], set())
+
         for other_item in search_index:
             if other_item["slug"] == item["slug"]:
                 continue
+
             other_links = page_links.get(other_item["slug"], set())
+
             # If they share at least one link target, they're related
             if source_links & other_links:
                 related[item["slug"]].add(other_item["slug"])
+
             # If they link to each other, they're related
             if item["slug"] in other_links or other_item["slug"] in source_links:
                 related[item["slug"]].add(other_item["slug"])
@@ -414,6 +417,7 @@ def _compute_backlinks_and_related(search_index, config):
         slug = item["slug"]
         bl = sorted(backlinks.get(slug, []))
         rel = sorted(related.get(slug, []))
+
         # Limit to reasonable numbers
         item["backlinks"] = bl[:50]
         item["related"] = rel[:12]
@@ -446,7 +450,7 @@ def build_search_index(slugs, config):
         src = os.path.join(config["_src_dir"], f"{slug}.md")
 
         if os.path.exists(src):
-            with open(src, "r", encoding="utf-8") as f:
+            with open(src, encoding="utf-8") as f:
                 raw = f.read()
 
             meta, body_md = parse_frontmatter(raw)
