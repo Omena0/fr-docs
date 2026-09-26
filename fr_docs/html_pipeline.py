@@ -85,8 +85,8 @@ def _render_template_placeholders(config):
             '<div class="version-selector-wrap">'
             '  <select id="version-selector" class="version-selector" aria-label="Select version">'
             '    {config.get("_version_options", "")}'
-            '  </select>'
-            '</div>'
+            "  </select>"
+            "</div>"
         )
 
     def _get_header_search_html() -> str:
@@ -95,7 +95,7 @@ def _render_template_placeholders(config):
         return (
             '<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24" aria-hidden="true">'
             '  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'
-            '</svg>'
+            "</svg>"
             '<input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">'
             '<div id="search-results" class="search-results"></div>'
         )
@@ -266,9 +266,7 @@ def build_page(slug, config, slug_page_keys) -> None:
 
     # Auto-link bare filename references (e.g., config.json -> config.json.md)
     if feature_enabled(config, "auto_link"):
-        body_html = auto_link_filenames(
-            body_html, config.get("_slug_page_keys", {})
-        )
+        body_html = auto_link_filenames(body_html, config.get("_slug_page_keys", {}))
 
     # Process code references (in HTML, after markdown conversion)
     code_refs = []
@@ -308,9 +306,7 @@ def build_page(slug, config, slug_page_keys) -> None:
             and page_data.get("backlinks")
             and not no_backlinks
         ):
-            backlinks_html = _render_backlinks(
-                page_data["backlinks"], search_index
-            )
+            backlinks_html = _render_backlinks(page_data["backlinks"], search_index)
             if has_backlinks_tag:
                 # Replace both paragraph-wrapped and bare tag
                 body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
@@ -395,7 +391,9 @@ def optimize_all_pages(config) -> None:
     # paths first, run critical, then restore the absolute paths in
     # the inlined output.
     site_prefix = normalized_site_prefix(config)
-    stripped_prefix = site_prefix.rstrip("/") if site_prefix and site_prefix != "/" else None
+    stripped_prefix = (
+        site_prefix.rstrip("/") if site_prefix and site_prefix != "/" else None
+    )
     backed_up = []
 
     try:
@@ -414,7 +412,7 @@ def optimize_all_pages(config) -> None:
                 # Strip the site prefix so href=/fr-docs/style.css
                 # becomes href=style.css (relative to the HTML file).
                 rewritten = prefix_pat.sub(
-                    lambda m: f'href={m.group(1)}{m.group(2)}{m.group(1)}',
+                    lambda m: f"href={m.group(1)}{m.group(2)}{m.group(1)}",
                     raw,
                 )
                 html_file.write_text(rewritten, encoding="utf-8")
@@ -445,16 +443,12 @@ def optimize_all_pages(config) -> None:
             )
             if result.returncode != 0:
                 msg = f"Critical failed for {html_file.name}:\n{result.stderr}"
-                raise RuntimeError(
-                    msg
-                )
+                raise RuntimeError(msg)
 
             optimized = result.stdout
             if "</html>" not in optimized:
                 msg = f"Critical output for {html_file.name} looks truncated"
-                raise RuntimeError(
-                    msg
-                )
+                raise RuntimeError(msg)
 
             html_file.write_text(optimized, encoding="utf-8")
 
@@ -526,7 +520,7 @@ def add_internal_prefetch_links(html_text, config):
     def _repl(m):
         attrs = m.group("attrs")
         # Skip links that already declare a rel attribute
-        if re.search(r'\brel\s*=', attrs, re.IGNORECASE):
+        if re.search(r"\brel\s*=", attrs, re.IGNORECASE):
             return m.group(0)
         hm = href_re.search(attrs)
         if not hm:
@@ -562,15 +556,15 @@ def _render_backlinks(backlinks, search_index) -> str:
     if not items:
         return ""
     return (
-        f'<h2>Backlinks</h2>'
+        f"<h2>Backlinks</h2>"
         f'<details class="backlinks-details">'
-        f'  <summary>'
-        f'    Show {len(items)} backlinks'
-        f'  </summary>'
-        f'  <ul>'
-        f'    {"".join(items)}'
-        f'  </ul>'
-        f'</details>'
+        f"  <summary>"
+        f"    Show {len(items)} backlinks"
+        f"  </summary>"
+        f"  <ul>"
+        f"    {''.join(items)}"
+        f"  </ul>"
+        f"</details>"
     )
 
 
@@ -589,10 +583,5 @@ def _render_related(related, search_index) -> str:
         return ""
 
     return (
-        f'<h2>Related</h2>'
-        f'<div class="related">'
-        f'  <ul>'
-        f'    {"".join(items)}'
-        f'  </ul>'
-        f'</div>'
+        f'<h2>Related</h2><div class="related">  <ul>    {"".join(items)}  </ul></div>'
     )

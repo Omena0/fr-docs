@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Configuration loading for the fr-docs documentation builder."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
+
 
 DEFAULT_CONFIG = {
     "$schema": "https://raw.githubusercontent.com/Omena0/fr-docs/main/config.schema.json",
@@ -58,7 +61,10 @@ def _merge(base, override):
 
 
 def load_config(config_path=None):
-    """Load and validate the documentation builder configuration."""
+    """Load and validate the documentation builder configuration.\n
+        :param config_path: Optional path to config file
+        :type config_path: str | Path | None
+    """
     if config_path is None:
         config_path = Path.cwd() / "config.json"
         if not config_path.exists():
@@ -77,18 +83,25 @@ def load_config(config_path=None):
         project_name_specified = "project_name" in loaded
 
     config_path = config_path.resolve()
-    docs_dir_raw = config["docs_dir"]
-    if not docs_dir_raw:
-        docs_dir = config_path.parent
-    else:
+    if docs_dir_raw := config["docs_dir"]:
         docs_dir_path = Path(docs_dir_raw)
         docs_dir = (
-            docs_dir_path if docs_dir_path.is_absolute()
+            docs_dir_path
+            if docs_dir_path.is_absolute()
             else (config_path.parent / docs_dir_path).resolve()
         )
+
+    else:
+        docs_dir = config_path.parent
+
     src_dir = docs_dir / config["src_dir"] if config["src_dir"] else docs_dir / "src"
-    out_dir_raw = config.get("build", {}).get("out_dir") or config.get("out_dir") or "site"
-    out_dir = docs_dir / out_dir_raw if not Path(out_dir_raw).is_absolute() else Path(out_dir_raw)
+
+    out_dir_raw = (
+        config.get("build", {}).get("out_dir") or config.get("out_dir") or "site"
+    )
+    out_dir = (
+        Path(out_dir_raw) if Path(out_dir_raw).is_absolute() else docs_dir / out_dir_raw
+    )
 
     config["_project_name_specified"] = project_name_specified
     config["_config_path"] = str(config_path)

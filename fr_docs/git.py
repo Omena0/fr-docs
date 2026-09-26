@@ -12,7 +12,12 @@ from .slug import slug_page_key
 
 
 def collect_git_metadata(config):
-    """Collect git metadata including repo info, commits, and versions."""
+    """Collect git metadata including repo info, commits, and versions.\n
+        :param config: Configuration dictionary
+        :type config: dict
+        :return: Git metadata dictionary
+        :rtype: dict
+    """
     git_meta = {
         "repo": None,
         "commits": [],
@@ -38,7 +43,7 @@ def collect_git_metadata(config):
         git_meta["repo"] = m[1]
 
     log_out = subprocess.check_output(
-        ["git", "log", "--pretty=format:%H%x01%s", "--reverse"],
+        ["git", "log", "--pretty=format:%H\x01%s", "--reverse"],
         cwd=repo_root,
         text=True,
     )
@@ -62,14 +67,12 @@ def collect_git_metadata(config):
         if m:
             code = m.group(1).upper()
             label = m.group(2).strip()
-            git_meta["versions"].append(
-                {"code": code, "commit": h, "label": label}
-            )
+            git_meta["versions"].append({"code": code, "commit": h, "label": label})
 
     slugs = list(config.get("_slug_page_keys", {}).keys())
     for slug in slugs:
-        git_meta["src_map"][slug_page_key(slug, config)] = (
-            src_map_path(config).replace("{slug}", slug)
+        git_meta["src_map"][slug_page_key(slug, config)] = src_map_path(config).replace(
+            "{slug}", slug
         )
 
     # Populate pages_by_commit: which slugs exist at each commit.
@@ -80,8 +83,11 @@ def collect_git_metadata(config):
 
     out = subprocess.check_output(
         [
-            "git", "log", "--pretty=format:%H",
-            "--name-only", "--",
+            "git",
+            "log",
+            "--pretty=format:%H",
+            "--name-only",
+            "--",
         ]
         + [src_map_path(config).replace("{slug}", s) for s in slugs],
         cwd=repo_root,
@@ -102,9 +108,7 @@ def collect_git_metadata(config):
             # line is a source path like "src/index.md"
             slug = Path(line).stem
             if slug in slugs:
-                git_meta["pages_by_commit"].setdefault(
-                    current_commit, []
-                ).append(slug)
+                git_meta["pages_by_commit"].setdefault(current_commit, []).append(slug)
 
     # Also record which commit each slug was last modified at, so the
     # client can fall back to a single-commit lookup.
@@ -127,7 +131,11 @@ def src_map_path(config) -> str:
     """Return the source markdown path relative to the repo root.
 
     e.g. ``docs/src/{slug}.md``. The client uses this to fetch
-    historical markdown from ``raw.githubusercontent.com``.
+    historical markdown from ``raw.githubusercontent.com``.\n
+        :param config: Configuration dictionary
+        :type config: dict
+        :return: Source path pattern
+        :rtype: str
     """
     docs_dir = Path(config.get("_docs_dir", "."))
     repo_root = docs_dir.parent
@@ -136,7 +144,12 @@ def src_map_path(config) -> str:
 
 
 def write_git_metadata(git_meta, config) -> None:
-    """Write git metadata to disk."""
+    """Write git metadata to disk.\n
+        :param git_meta: Git metadata dictionary
+        :type git_meta: dict
+        :param config: Configuration dictionary
+        :type config: dict
+    """
     try:
         with open(
             os.path.join(config["_out_dir"], git_meta_filename(config)),
@@ -144,12 +157,19 @@ def write_git_metadata(git_meta, config) -> None:
             encoding="utf-8",
         ) as gf:
             json.dump(git_meta, gf, separators=(",", ":"))
-    except OSError, TypeError:
+    except (OSError, TypeError):
         pass
 
 
 def build_version_options(git_meta, config):
-    """Pre-render version selector HTML options."""
+    """Pre-render version selector HTML options.\n
+        :param git_meta: Git metadata dictionary
+        :type git_meta: dict
+        :param config: Configuration dictionary
+        :type config: dict
+        :return: HTML options string
+        :rtype: str
+    """
 
     try:
         opts = [f'<option value="">{live_label(config)}</option>']
@@ -166,27 +186,27 @@ def build_version_options(git_meta, config):
                     esc_commit = html.escape(commit[:8])
                     opts.append(
                         f'<option value="{esc_code}" data-label="{esc_label}" data-commit="{esc_commit}">'
-                        f'  {esc_code}'
-                        f'</option>'
+                        f"  {esc_code}"
+                        f"</option>"
                     )
                 else:
                     esc_commit = html.escape(commit[:8])
                     opts.append(
                         f'<option value="{esc_code}" data-commit="{esc_commit}">'
-                        f'  {esc_code}'
-                        f'</option>'
+                        f"  {esc_code}"
+                        f"</option>"
                     )
         elif git_meta["commits"]:
             latest = git_meta["commits"][-1]
             esc_commit = html.escape(latest[:8])
             opts.append(
                 f'<option value="{latest}" data-commit="{esc_commit}">'
-                f'  {esc_commit}'
-                f'</option>'
+                f"  {esc_commit}"
+                f"</option>"
             )
 
         config["_version_options"] = "\n".join(opts)
-    except KeyError, TypeError, AttributeError:
+    except (KeyError, TypeError, AttributeError):
         config["_version_options"] = f'<option value="">{live_label(config)}</option>'
 
     return config["_version_options"]

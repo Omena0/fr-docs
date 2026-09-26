@@ -218,7 +218,6 @@ def auto_link_filenames(html_text, slug_page_keys):
     return re.sub(r"@@COPYCMD(\d+)@@", _restore_copy_cmd, processed_text)
 
 
-
 def strip_code_refs_outside_code_blocks(html_text):
     """Remove code reference links (file.py:line) that are OUTSIDE <pre><code> blocks.
 
@@ -463,4 +462,3 @@ def auto_link_markdown(md_text, search_map):
     text = re.sub(r"@@INLINECODE(\d+)@@", _restore_inline, text)
 
     return re.sub(r"@@CODEFENCE(\d+)@@", lambda m: code_fences[int(m.group(1))], text)
-

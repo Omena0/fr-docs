@@ -8,6 +8,7 @@ from .frontmatter import parse_frontmatter
 from .slug import normalize_slug, slug_output_name, slug_page_key
 from .utils import output_href
 
+
 # Symbol extraction patterns for various languages
 SYMBOL_PATTERNS = {
     "python": [
@@ -160,7 +161,12 @@ SYMBOL_PATTERNS = {
 
 
 def get_language_from_path(file_path):
-    """Determine language from file extension."""
+    """Determine language from file extension.\n
+        :param file_path: Path to the file
+        :type file_path: str
+        :return: Language name or None
+        :rtype: str | None
+    """
     ext = file_path.split(".").pop().lower()
     lang_map = {
         "py": "python",
@@ -186,7 +192,14 @@ def get_language_from_path(file_path):
 
 
 def extract_symbols_from_content(content, language):
-    """Extract symbols (functions, classes, etc.) from source code content."""
+    """Extract symbols (functions, classes, etc.) from source code content.\n
+        :param content: Source code content
+        :type content: str
+        :param language: Programming language
+        :type language: str
+        :return: List of symbol dictionaries
+        :rtype: list[dict]
+    """
     if not language or language not in SYMBOL_PATTERNS:
         return []
 
@@ -221,7 +234,14 @@ def extract_symbols_from_content(content, language):
 
 
 def build_symbol_index(source_files, config):
-    """Build a search index of symbols from source files."""
+    """Build a search index of symbols from source files.\n
+        :param source_files: Dictionary of file path to content
+        :type source_files: dict[str, str]
+        :param config: Configuration dictionary
+        :type config: dict
+        :return: List of symbol index entries
+        :rtype: list[dict]
+    """
     symbol_index = []
 
     if not feature_enabled(config, "search"):
@@ -249,7 +269,12 @@ def build_symbol_index(source_files, config):
 
 
 def _parse_search_sections(body_md):
-    """Extract searchable text sections from markdown body."""
+    """Extract searchable text sections from markdown body.\n
+        :param body_md: Markdown body text
+        :type body_md: str
+        :return: List of section dictionaries
+        :rtype: list[dict]
+    """
     title = None
     current_heading = title
 
@@ -314,7 +339,12 @@ def _parse_search_sections(body_md):
 
 
 def _extract_links(body_md):
-    """Extract all markdown links from body."""
+    """Extract all markdown links from body.\n
+        :param body_md: Markdown body text
+        :type body_md: str
+        :return: List of link targets
+        :rtype: list[str]
+    """
     links = []
     # Match [text](url) but not images ![text](url)
     link_pattern = re.compile(r"(?<!\!)\[([^\]]+)\]\(([^)]+)\)")
@@ -333,10 +363,19 @@ def _extract_links(body_md):
     return links
 
 
-def _resolve_link(
-    link, current_slug, slug_to_source, search_index
-):
-    """Resolve a link to a target slug."""
+def _resolve_link(link, current_slug, slug_to_source, search_index):
+    """Resolve a link to a target slug.\n
+        :param link: Link target
+        :type link: str
+        :param current_slug: Current page slug
+        :type current_slug: str
+        :param slug_to_source: Mapping of slug to index
+        :type slug_to_source: dict[str, int]
+        :param search_index: Search index list
+        :type search_index: list[dict]
+        :return: Resolved slug or None
+        :rtype: str | None
+    """
     # Try direct match
     if link in slug_to_source:
         return search_index[slug_to_source[link]]["slug"]
@@ -355,7 +394,12 @@ def _resolve_link(
 
 
 def _compute_backlinks_and_related(search_index, config) -> None:
-    """Compute backlinks and related pages for each page."""
+    """Compute backlinks and related pages for each page.\n
+        :param search_index: Search index list
+        :type search_index: list[dict]
+        :param config: Configuration dictionary
+        :type config: dict
+    """
     # Build a map of page slugs to their index
     {item["slug"]: i for i, item in enumerate(search_index)}
     slug_to_source = {item["source_slug"]: i for i, item in enumerate(search_index)}
@@ -424,6 +468,12 @@ def _compute_backlinks_and_related(search_index, config) -> None:
 
 
 def search_include_config(config):
+    """Get search include configuration.\n
+        :param config: Configuration dictionary
+        :type config: dict
+        :return: Dictionary of search include options
+        :rtype: dict[str, bool]
+    """
     defaults = {
         "pages": True,
         "titles": True,
@@ -443,7 +493,14 @@ def search_include_config(config):
 
 
 def build_search_index(slugs, config):
-    """Build the search index from markdown sources."""
+    """Build the search index from markdown sources.\n
+        :param slugs: List of page slugs
+        :type slugs: list[str]
+        :param config: Configuration dictionary
+        :type config: dict
+        :return: Search index list
+        :rtype: list[dict]
+    """
     search_index = []
 
     for slug in slugs:

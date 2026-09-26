@@ -86,7 +86,17 @@ def build_sidebar_html(current_slug, sidebar_config, tagged_sections=None, confi
 
     ``tagged_sections`` maps a section's display name to its custom-tag
     name (e.g. ``{"[beta] New Features": "beta"}``). The ``[tag]``
-    prefix is stripped from the heading text and a badge is appended.
+    prefix is stripped from the heading text and a badge is appended.\n
+        :param current_slug: Current page slug
+        :type current_slug: str
+        :param sidebar_config: Sidebar configuration
+        :type sidebar_config: list[tuple]
+        :param tagged_sections: Tagged sections mapping
+        :type tagged_sections: dict[str, str] | None
+        :param config: Configuration dictionary
+        :type config: dict | None
+        :return: Sidebar HTML string
+        :rtype: str
     """
     if tagged_sections is None:
         tagged_sections = {}
@@ -95,10 +105,10 @@ def build_sidebar_html(current_slug, sidebar_config, tagged_sections=None, confi
     if config and feature_enabled(config, "search"):
         parts.extend(
             [
-'<div class="search-box">',
+                '<div class="search-box">',
                 '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">',
                 '    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-                '  </svg>',
+                "  </svg>",
                 '  <input type="text" id="sidebar-search" placeholder="Search docs…">',
                 "</div>",
             ]
@@ -125,7 +135,7 @@ def build_sidebar_html(current_slug, sidebar_config, tagged_sections=None, confi
         parts.extend(
             (
                 '<div class="sidebar-section">',
-               f'  <div class="sidebar-heading{" collapsed" if collapsed else ""}" data-section="{key}">{heading}{tag_badge}',
+                f'  <div class="sidebar-heading{" collapsed" if collapsed else ""}" data-section="{key}">{heading}{tag_badge}',
                 '  <ul class="sidebar-links">',
             )
         )
@@ -143,7 +153,20 @@ def build_sidebar_html(current_slug, sidebar_config, tagged_sections=None, confi
 def build_toc_sidebar(
     toc_tokens, current_slug, sidebar_config, tagged_sections=None, config=None
 ):
-    """Build the sidebar with 'On This Page' TOC at the top, then nav sections."""
+    """Build the sidebar with 'On This Page' TOC at the top, then nav sections.\n
+        :param toc_tokens: Table of contents tokens
+        :type toc_tokens: list[dict]
+        :param current_slug: Current page slug
+        :type current_slug: str
+        :param sidebar_config: Sidebar configuration
+        :type sidebar_config: list[tuple]
+        :param tagged_sections: Tagged sections mapping
+        :type tagged_sections: dict[str, str] | None
+        :param config: Configuration dictionary
+        :type config: dict | None
+        :return: Combined sidebar HTML
+        :rtype: str
+    """
     nav = build_sidebar_html(current_slug, sidebar_config, tagged_sections, config)
     if not toc_tokens:
         return nav

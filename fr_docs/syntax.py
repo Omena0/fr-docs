@@ -143,13 +143,13 @@ def process_blockquotes(html_text):
                 f'<div class="callout callout-{callout_type}">'
                 f'  <span class="callout-icon" aria-hidden="true">'
                 f'    <svg viewBox="0 0 24 24">'
-                f'      {CALLOUT_ICONS[callout_type]}'
-                f'    </svg>'
-                f'  </span>'
+                f"      {CALLOUT_ICONS[callout_type]}"
+                f"    </svg>"
+                f"  </span>"
                 f'  <div class="callout-content">'
-                f'    {body}'
-                f'  </div>'
-                f'</div>'
+                f"    {body}"
+                f"  </div>"
+                f"</div>"
             )
         return "".join(callouts)
 

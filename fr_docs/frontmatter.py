@@ -2,7 +2,12 @@
 
 
 def parse_frontmatter(text):
-    """Extract YAML-like frontmatter and return (metadata_dict, remaining_text)."""
+    """Extract YAML-like frontmatter and return (metadata_dict, remaining_text).\n
+        :param text: Markdown text with optional frontmatter
+        :type text: str
+        :return: Tuple of (metadata dict, body text)
+        :rtype: tuple[dict, str]
+    """
     if not text.startswith("---"):
         return {}, text
 
@@ -22,4 +27,10 @@ def parse_frontmatter(text):
 
 
 def format_ext_tags(html_text):
+    """Replace [ext] markers with styled badges.\n
+        :param html_text: HTML text
+        :type html_text: str
+        :return: HTML text with formatted tags
+        :rtype: str
+    """
     return html_text.replace("[ext]", '<span class="ext-tag">ext</span>')

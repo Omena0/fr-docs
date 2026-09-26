@@ -1,10 +1,11 @@
 
 : Runs lint and checkers
 
-: Ruff
-ruff check . --fix
+echo Ruff checks + format
+ruff check . --fix --unsafe-fixes
 ruff format .
 
-: Refurb
+echo
+echo Refurb checks
 refurb --enable-all .
 

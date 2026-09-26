@@ -79,8 +79,8 @@ def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
         terser_bin = node_modules / ".bin" / "terser"
         cmd = [
             str(terser_bin) if terser_bin.exists() else "npx",
-            "--yes" if not terser_bin.exists() else "",
-            *(["terser"] if not terser_bin.exists() else []),
+            "" if terser_bin.exists() else "--yes",
+            *([] if terser_bin.exists() else ["terser"]),
             str(src),
             "--compress",
             "warnings=false",
@@ -108,8 +108,8 @@ def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
         wrapper.write_text(wrapped, encoding="utf-8")
         cmd = [
             str(minifier_bin) if minifier_bin.exists() else "npx",
-            "--yes" if not minifier_bin.exists() else "",
-            *(["html-minifier-next"] if not minifier_bin.exists() else ""),
+            "" if minifier_bin.exists() else "--yes",
+            *("" if minifier_bin.exists() else ["html-minifier-next"]),
             "--minify-css=true",
             "--remove-comments",
             "--output",
@@ -122,9 +122,8 @@ def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
         )
         if result.returncode == 0 and min_out.exists():
             out = min_out.read_text(encoding="utf-8")
-            m = re.search(r"<style>([\s\S]*)</style>", out)
-            if m:
-                dst.write_text(m.group(1), encoding="utf-8")
+            if m := re.search(r"<style>([\s\S]*)</style>", out):
+                dst.write_text(m[1], encoding="utf-8")
                 return
         print(f"  ! minify failed for {name}, copying raw: {result.stderr[-300:]}")
     finally:
@@ -147,14 +146,14 @@ class BuildCache:
         if not self.cache_path.exists():
             return {}
         try:
-            with open(self.cache_path, encoding="utf-8") as f:
+            with self.cache_path.open() as f:
                 return json.load(f)
         except json.JSONDecodeError, OSError:
             return {}
 
     def _save_cache(self) -> None:
         """Save the build cache to disk."""
-        with open(self.cache_path, "w", encoding="utf-8") as f:
+        with self.cache_path.open("w") as f:
             json.dump(self.cache, f, separators=(",", ":"))
 
     def needs_regeneration(self, key: str, current_hash: str) -> bool:
@@ -615,7 +614,7 @@ def main(argv=None) -> None:
         except Exception as e:  # noqa: BLE001
             print(f"   ✗ Minification failed: {e}")
 
-# Create a {site_prefix}/ directory under site/ and symlink every
+        # Create a {site_prefix}/ directory under site/ and symlink every
         # file into it, so a production build works locally (the HTML
         # references absolute paths like /fr-docs/style.css). Without
         # this, running `python -m fr_docs build --production` and then
@@ -634,7 +633,9 @@ def main(argv=None) -> None:
                 for f in sorted(Path(config["_out_dir"]).iterdir()):
                     if f.is_file() and not f.name.startswith("."):
                         (prefix_dir / f.name).symlink_to(f.resolve())
-                print(f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/")
+                print(
+                    f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/"
+                )
             except OSError as e:
                 print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
 
