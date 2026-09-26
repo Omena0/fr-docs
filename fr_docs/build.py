@@ -471,7 +471,7 @@ def main(argv=None):
 
         config["_search_index_inline"] = (
             '<script id="zstd-data" type="text/plain">'
-            f"{base64.b64encode(compressed).decode('ascii')}"
+            f"  {base64.b64encode(compressed).decode('ascii')}"
             "</script>"
         )
 

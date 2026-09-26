@@ -12,7 +12,11 @@ from urllib.parse import urljoin, urlsplit
 
 from .config_accessors import (
     copyright_holder,
+    custom_tags,
     feature_enabled,
+    features_state,
+    footer_text,
+    header_links,
     project_name,
     sidebar,
 )
@@ -34,7 +38,7 @@ from .search import search_include_config
 from .slug import slug_output_name
 from .syntax import (
     URL_ATTR_RE,
-    format_ext_tags,
+    format_custom_tags,
     highlight_code_blocks,
     process_blockquotes,
 )
@@ -42,14 +46,22 @@ from .template import TEMPLATE, build_toc_sidebar
 from .utils import normalized_site_prefix, output_href
 
 
-def _determine_ext_sections(config):
-    """Determine which sections should have the [ext] tag."""
+def _determine_tagged_sections(config):
+    """Determine which sidebar sections should carry a custom tag.
+
+    A section name containing ``[tag]`` (e.g. ``"[beta] New Features"``)
+    is tagged with that tag. Returns a dict mapping section display name
+    to its tag name. Sections without a tag are absent from the dict.
+    """
     sidebar_config = sidebar(config)
-    ext_sections = []
-    ext_sections.extend(
-        section_name for section_name, _ in sidebar_config if "[ext]" in section_name
-    )
-    return ext_sections or {"Extensions"}
+    tags = custom_tags(config)
+    tagged = {}
+    for section_name, _ in sidebar_config:
+        for tag in tags:
+            if f"[{tag}]" in section_name:
+                tagged[section_name] = tag
+                break
+    return tagged
 
 
 def _render_template_placeholders(config):
@@ -87,6 +99,24 @@ def _render_template_placeholders(config):
             '<div id="search-results" class="search-results"></div>'
         )
 
+    def _get_header_nav_links():
+        links = header_links(config)
+        parts = []
+        for item in links:
+            name = item.get("name", "")
+            href = item.get("href", "index.html")
+            parts.append(f'<a href="{href}">{name}</a>')
+        return "\n      ".join(parts)
+
+    def _get_footer_html():
+        text = footer_text(config)
+        if text:
+            return text
+        return (
+            f"&copy; {_get_copyright_year()} {_get_copyright_holder()}"
+            f" &middot; {project_name(config)} Documentation"
+        )
+
     def _get_search_preloads_html():
         return ""
 
@@ -99,14 +129,18 @@ def _render_template_placeholders(config):
         "logo_text": _get_logo_text(),
         "version_selector_html": _get_version_selector_html(),
         "header_search_html": _get_header_search_html(),
+        "header_nav_links": _get_header_nav_links(),
         "extra_nav_links": "",
         "sidebar": "",
         "subtitle_html": "",
         "body": "",
         "search_index_inline": "",
         "search_preloads": _get_search_preloads_html(),
+        "features_config_json": json.dumps(features_state(config)),
+        "custom_tags_json": json.dumps(custom_tags(config)),
         "copyright_year": _get_copyright_year(),
         "copyright_holder": _get_copyright_holder(),
+        "footer_html": _get_footer_html(),
     }
 
 
@@ -245,7 +279,7 @@ def build_page(slug, config, slug_page_keys):
     if feature_enabled(config, "blockquotes"):
         body_html = process_blockquotes(body_html)
     if feature_enabled(config, "ext_tags"):
-        body_html = format_ext_tags(body_html)
+        body_html = format_custom_tags(body_html, config)
 
     # Handle <backlinks> and <related> tags
     backlinks_html = ""
@@ -296,9 +330,9 @@ def build_page(slug, config, slug_page_keys):
 
     subtitle_html = f'<p class="subtitle">{subtitle}</p>' if subtitle else ""
 
-    ext_sections = _determine_ext_sections(config)
+    tagged_sections = _determine_tagged_sections(config)
     sidebar_html = build_toc_sidebar(
-        toc_tokens, slug, sidebar(config), ext_sections, config
+        toc_tokens, slug, sidebar(config), tagged_sections, config
     )
 
     og_description = subtitle or f"{title} — {project_name(config)} documentation"

@@ -368,8 +368,11 @@ def _compute_backlinks_and_related(search_index, config):
         if os.path.exists(src):
             with open(src, "r", encoding="utf-8") as f:
                 raw = f.read()
+
             _, body_md = parse_frontmatter(raw)
+
             links = _extract_links(body_md)
+
             # Resolve links to actual slugs
             resolved = set()
             for link in links:

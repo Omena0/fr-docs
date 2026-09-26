@@ -389,6 +389,30 @@ document.addEventListener('DOMContentLoaded', () => {
     files: true
   }, searchConfig);
 
+  // Custom-tag config embedded by the builder (e.g. {"ext": {"display": "ext", "class": "ext-tag"}})
+  const customTagsConfig = (() => {
+    const el = document.getElementById('custom-tags-config');
+    try {
+      return el ? JSON.parse(el.textContent) : { ext: { display: 'ext', class: 'ext-tag' } };
+    } catch (e) {
+      return { ext: { display: 'ext', class: 'ext-tag' } };
+    }
+  })();
+
+  function formatCustomTags(text) {
+    if (!text) return text;
+    const tagNames = Object.keys(customTagsConfig);
+    if (!tagNames.length) return text;
+    const pattern = new RegExp('\\[(' + tagNames.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\]', 'g');
+    return text.replace(pattern, (m, tag) => {
+      const spec = customTagsConfig[tag];
+      if (!spec) return m;
+      const cls = spec.class || 'ext-tag';
+      const display = spec.display || tag;
+      return `<span class="${cls}">${display}</span>`;
+    });
+  }
+
   // ── Load symbol index ──────────────────────────────────────────
   async function loadSymbolIndex() {
     if (symbolIndex !== null) return symbolIndex;
@@ -542,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const snippet = h.text ? h.text.substring(0, 100) : '';
       const heading = h.heading ? ` › ${h.heading}` : '';
       const typeBadge = h.type === 'symbol' ? '<span class="ext-tag" style="margin-left:6px;background:var(--primary-soft);color:var(--primary)">symbol</span>' : h.type === 'file' ? '<span class="ext-tag" style="margin-left:6px;background:var(--primary-soft);color:var(--primary)">file</span>' : '';
-      const fmtTitle = (h.title + heading + typeBadge).replace(/\[ext\]/g, '<span class="ext-tag">ext</span>');
+      const fmtTitle = formatCustomTags(h.title + heading + typeBadge);
       const href = addVerToHref(h.url);
       return `<a class="search-hit" href="${href}"><strong>${fmtTitle}</strong><span>${snippet}</span></a>`;
     }).join('');
@@ -1583,11 +1607,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Check if feature is enabled (from config)
+  // Check if feature is enabled (from the config embedded by the builder)
   function featureEnabled(name) {
-    // This would ideally come from a config object embedded in the page
-    // For now, check if the feature is generally available
-    return true; // Always enabled for now
+    const el = document.getElementById('features-config');
+    if (!el) return true; // fallback: assume enabled if no config embedded
+    try {
+      const state = JSON.parse(el.textContent || '{}');
+      return !!state[name];
+    } catch (e) {
+      return true;
+    }
   }
 
   // Initialize link previews

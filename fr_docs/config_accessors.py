@@ -57,9 +57,93 @@ def features_config(config):
     return config.get("features", {})
 
 
+def custom_tags(config):
+    """Return the custom-tag configuration as {tag_name: {label, display, class}}.
+
+    Each entry maps an inline marker like ``[beta]`` to a badge. ``label``
+    is the sidebar category name (sections whose name contains ``[beta]``
+    are tagged), ``display`` is the badge text, and ``class`` is the CSS
+    class used to style it.
+
+    Accepts either a dict::
+
+        "custom_tags": {"ext": {"label": "Extensions", "display": "ext"}}
+
+    or a list of objects with a required ``tag`` field::
+
+        "custom_tags": [{"tag": "ext", "label": "Extensions", "display": "ext"}]
+
+    Defaults to a single ``ext`` tag for backwards compatibility.
+    """
+    raw = config.get("custom_tags")
+    if raw is None:
+        return {"ext": {"label": "Extensions", "display": "ext", "class": "ext-tag"}}
+    if isinstance(raw, dict):
+        return dict(raw)
+    if isinstance(raw, list):
+        result = {}
+        for entry in raw:
+            if not isinstance(entry, dict) or "tag" not in entry:
+                continue
+            tag = str(entry["tag"])
+            result[tag] = {
+                "label": str(entry.get("label", tag.capitalize())),
+                "display": str(entry.get("display", tag)),
+                "class": str(entry.get("class", "ext-tag")),
+            }
+        return result
+    return {"ext": {"label": "Extensions", "display": "ext", "class": "ext-tag"}}
+
+
 def feature_enabled(config, feature_name):
-    value = features_config(config).get(feature_name, True)
-    return value.get("enabled", True) if isinstance(value, dict) else bool(value)
+    # Default to False: features must be explicitly enabled in config.
+    # Previously the default was True, which meant every feature was
+    # on even when not configured — including features that should be
+    # opt-in.
+    value = features_config(config).get(feature_name, False)
+    return value.get("enabled", False) if isinstance(value, dict) else bool(value)
+
+
+def features_state(config):
+    """Return a flat dict of every feature name to its enabled bool.
+
+    Used to embed feature state into the page so client-side JS can
+    gate behaviour (e.g. link previews) on the same decisions the
+    builder made.
+    """
+    return {
+        name: (
+            (v.get("enabled", False) if isinstance(v, dict) else bool(v))
+            if v is not None
+            else False
+        )
+        for name, v in features_config(config).items()
+    }
+
+
+def header_links(config):
+    """Return an ordered list of {name, href} links for the header nav.
+
+    Defaults to a single "Docs" link back to the site root. Users can
+    override with a dict mapping readable names to hrefs.
+    """
+    raw = config.get("header_links")
+    if raw is None:
+        return [{"name": "Docs", "href": "index.html"}]
+    if isinstance(raw, dict):
+        return [{"name": str(k), "href": str(v)} for k, v in raw.items()]
+    if isinstance(raw, list):
+        return [
+            {"name": str(item.get("name", "")), "href": str(item.get("href", ""))}
+            for item in raw
+            if isinstance(item, dict)
+        ]
+    return [{"name": "Docs", "href": "index.html"}]
+
+
+def footer_text(config):
+    """Return the footer text. Defaults to the standard copyright line."""
+    return str(config.get("footer_text", ""))
 
 
 def src_dir(config):

@@ -1,5 +1,7 @@
 """HTML template for documentation pages."""
 
+import re
+
 from .config_accessors import feature_enabled
 from .slug import slug_basename, slug_output_name
 
@@ -40,8 +42,7 @@ TEMPLATE = """\
       {header_search_html}
     </div>
     <nav class="header-nav">
-      <a href="index.html">Docs</a>
-      {extra_nav_links}
+      {header_nav_links}
     </nav>
   </header>
 
@@ -58,12 +59,12 @@ TEMPLATE = """\
       {body}
     </div>
     <footer class="site-footer">
-      &copy; {copyright_year} {copyright_holder} &middot; {project_name} Documentation
+      {footer_html}
     </footer>
   </main>
 
   <!-- Back to top -->
-<button class="back-to-top" aria-label="Back to top">
+  <button class="back-to-top" aria-label="Back to top">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
         <path d="M18 15l-6-6-6 6"/>
       </svg>
@@ -72,23 +73,32 @@ TEMPLATE = """\
     {search_index_inline}
     <script id="code-refs-data" type="application/json">{code_refs_json}</script>
     <script id="search-config" type="application/json">{search_config_json}</script>
+    <script id="features-config" type="application/json">{features_config_json}</script>
+    <script id="custom-tags-config" type="application/json">{custom_tags_json}</script>
     <script src="{site_prefix}script.js" defer></script>
 </body>
 </html>
 """
 
 
-def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=None):
-    """Generate the sidebar HTML from the config sidebar definition."""
-    if ext_sections is None:
-        ext_sections = {"Extensions"}
+def build_sidebar_html(current_slug, sidebar_config, tagged_sections=None, config=None):
+    """Generate the sidebar HTML from the config sidebar definition.
+
+    ``tagged_sections`` maps a section's display name to its custom-tag
+    name (e.g. ``{"[beta] New Features": "beta"}``). The ``[tag]``
+    prefix is stripped from the heading text and a badge is appended.
+    """
+    if tagged_sections is None:
+        tagged_sections = {}
 
     parts = []
     if config and feature_enabled(config, "search"):
         parts.extend(
             [
-                '<div class="search-box">',
-                '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+'<div class="search-box">',
+                '  <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">',
+                '    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+                '  </svg>',
                 '  <input type="text" id="sidebar-search" placeholder="Search docs…">',
                 "</div>",
             ]
@@ -96,7 +106,13 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=N
 
     for section_name, pages in sidebar_config:
         key = _section_key(section_name)
-        is_ext = section_name in ext_sections
+        tag = tagged_sections.get(section_name)
+        heading = section_name
+        tag_badge = ""
+        if tag:
+            # Strip the [tag] prefix from the heading text
+            heading = re.sub(r"^\s*\[[^\]]+\]\s*", "", section_name).strip()
+            tag_badge = f' <span class="ext-tag">{tag}</span>'
 
         # Auto-expand the section that contains the current page, and
         # any section with only one page (so users can see its contents
@@ -109,14 +125,14 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=N
         parts.extend(
             (
                 '<div class="sidebar-section">',
-                f'  <div class="sidebar-heading{" collapsed" if collapsed else ""}" data-section="{key}">{section_name}</div>',
+               f'  <div class="sidebar-heading{" collapsed" if collapsed else ""}" data-section="{key}">{heading}{tag_badge}',
                 '  <ul class="sidebar-links">',
             )
         )
         for slug, label in pages:
             active = ' class="active"' if slug == current_slug else ""
             href = slug_output_name(slug_basename(slug))
-            display = f'{label} <span class="ext-tag">ext</span>' if is_ext else label
+            display = label
             parts.append(f'    <li><a href="{href}"{active}>{display}</a></li>')
 
         parts.extend(("  </ul>", "</div>"))
@@ -125,10 +141,10 @@ def build_sidebar_html(current_slug, sidebar_config, ext_sections=None, config=N
 
 
 def build_toc_sidebar(
-    toc_tokens, current_slug, sidebar_config, ext_sections=None, config=None
+    toc_tokens, current_slug, sidebar_config, tagged_sections=None, config=None
 ):
     """Build the sidebar with 'On This Page' TOC at the top, then nav sections."""
-    nav = build_sidebar_html(current_slug, sidebar_config, ext_sections, config)
+    nav = build_sidebar_html(current_slug, sidebar_config, tagged_sections, config)
     if not toc_tokens:
         return nav
 

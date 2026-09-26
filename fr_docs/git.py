@@ -109,19 +109,25 @@ def build_version_options(git_meta, config):
                     esc_label = html.escape(label)
                     esc_commit = html.escape(commit[:8])
                     opts.append(
-                        f'<option value="{esc_code}" data-label="{esc_label}" data-commit="{esc_commit}">{esc_code}</option>'
+                        f'<option value="{esc_code}" data-label="{esc_label}" data-commit="{esc_commit}">'
+                        f'  {esc_code}'
+                        f'</option>'
                     )
                 else:
                     esc_commit = html.escape(commit[:8])
                     opts.append(
-                        f'<option value="{esc_code}" data-commit="{esc_commit}">{esc_code}</option>'
+                        f'<option value="{esc_code}" data-commit="{esc_commit}">'
+                        f'  {esc_code}'
+                        f'</option>'
                     )
         else:
             if git_meta["commits"]:
                 latest = git_meta["commits"][-1]
                 esc_commit = html.escape(latest[:8])
                 opts.append(
-                    f'<option value="{latest}" data-commit="{esc_commit}">{esc_commit}</option>'
+                    f'<option value="{latest}" data-commit="{esc_commit}">'
+                    f'  {esc_commit}'
+                    f'</option>'
                 )
 
         config["_version_options"] = "\n".join(opts)

@@ -97,12 +97,12 @@ def highlight_source_lines(content, file_path):
 
 
 CALLOUT_ICONS = {
-    "note": '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v6m0 4h.01"/></svg>',
-    "info": '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg>',
-    "tip": '<svg viewBox="0 0 24 24"><path d="M9 18h6m-5 3h4M8 14a6 6 0 1 1 8 0c-.8.6-1 1.3-1 2H9c0-.7-.2-1.4-1-2Z"/></svg>',
-    "warning": '<svg viewBox="0 0 24 24"><path d="m12 3 9 17H3L12 3Z"/><path d="M12 9v4m0 4h.01"/></svg>',
-    "error": '<svg viewBox="0 0 24 24"><path d="m12 3 9 9-9 9-9-9 9-9Z"/><path d="m9 9 6 6m0-6-6 6"/></svg>',
-    "critical": '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z"/><path d="M12 8v5m0 4h.01"/></svg>',
+    "note": '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 4v6m0 4h.01"/>',
+    "info": '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
+    "tip": '<path d="M9 18h6m-5 3h4M8 14a6 6 0 1 1 8 0c-.8.6-1 1.3-1 2H9c0-.7-.2-1.4-1-2Z"/>',
+    "warning": '<path d="m12 3 9 17H3L12 3Z"/><path d="M12 9v4m0 4h.01"/>',
+    "error": '<path d="m12 3 9 9-9 9-9-9 9-9Z"/><path d="m9 9 6 6m0-6-6 6"/>',
+    "critical": '<path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6l-7-3Z"/><path d="M12 8v5m0 4h.01"/>',
 }
 
 
@@ -141,8 +141,15 @@ def process_blockquotes(html_text):
             body = f"<p>{part}</p>"
             callouts.append(
                 f'<div class="callout callout-{callout_type}">'
-                f'<span class="callout-icon" aria-hidden="true">{CALLOUT_ICONS[callout_type]}</span>'
-                f'<div class="callout-content">{body}</div></div>'
+                f'  <span class="callout-icon" aria-hidden="true">'
+                f'    <svg viewBox="0 0 24 24">'
+                f'      {CALLOUT_ICONS[callout_type]}'
+                f'    </svg>'
+                f'  </span>'
+                f'  <div class="callout-content">'
+                f'    {body}'
+                f'  </div>'
+                f'</div>'
             )
         return "".join(callouts)
 
@@ -151,5 +158,30 @@ def process_blockquotes(html_text):
     )
 
 
-def format_ext_tags(html_text):
-    return html_text.replace("[ext]", '<span class="ext-tag">ext</span>')
+def format_custom_tags(html_text, config=None):
+    """Replace every ``[tag]`` inline marker with a styled badge.
+
+    ``config`` may be a fr-docs config dict (so ``custom_tags`` is
+    consulted) or ``None`` (falls back to ``[ext]`` only, for backwards
+    compatibility with callers that pass raw HTML).
+    """
+    if config is None:
+        return html_text.replace("[ext]", '<span class="ext-tag">ext</span>')
+
+    from .config_accessors import custom_tags
+
+    tags = custom_tags(config)
+    if not tags:
+        return html_text
+
+    def _repl(m):
+        tag = m.group(1)
+        spec = tags.get(tag)
+        if not spec:
+            return m.group(0)
+        cls = spec.get("class", "ext-tag")
+        display = spec.get("display", tag)
+        return f'<span class="{cls}">{display}</span>'
+
+    pattern = re.compile(r"\[(" + "|".join(re.escape(t) for t in tags) + r")\]")
+    return pattern.sub(_repl, html_text)
