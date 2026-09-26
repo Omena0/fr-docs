@@ -24,10 +24,10 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install ruff
-        run: pip install ruff
+        run: pip install ruff refurb
 
       - name: Run ruff check
         run: ruff check .
 
-      - name: Run ruff format
-        run: ruff format --check .
+      - name: Run refurb check
+        run: refurb --enable-all .

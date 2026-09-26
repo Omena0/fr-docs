@@ -171,8 +171,6 @@ def format_custom_tags(html_text, config=None):
     from .config_accessors import custom_tags
 
     tags = custom_tags(config)
-    if not tags:
-        return html_text
 
     def _repl(m):
         tag = m.group(1)
@@ -183,5 +181,10 @@ def format_custom_tags(html_text, config=None):
         display = spec.get("display", tag)
         return f'<span class="{cls}">{display}</span>'
 
-    pattern = re.compile(r"\[(" + "|".join(re.escape(t) for t in tags) + r")\]")
-    return pattern.sub(_repl, html_text)
+    return (
+        html_text
+        if not tags
+        else re.compile(r"\[(" + "|".join(re.escape(t) for t in tags) + r")\]").sub(
+            _repl, html_text
+        )
+    )

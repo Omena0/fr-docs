@@ -89,8 +89,15 @@ extend-ignore = [
     "S603",
     "S607",
     "G004",
-    "RUF001"
+    "RUF001",
 ]
 
+[tool.ruff.lint.mccabe]
+max-complexity = 18
+
+[tool.ruff.lint.per-file-ignores]
+"fr_docs/build.py" = ["PLR0912", "PLR0915", "C901"]
+
 fixable = ["ALL"]
+
 

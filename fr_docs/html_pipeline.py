@@ -4,7 +4,6 @@ import contextlib
 import datetime
 import json
 import logging
-import os
 import re
 import subprocess
 import tempfile
@@ -65,72 +64,79 @@ def _determine_tagged_sections(config):
     return tagged
 
 
+def _get_logo_text(config):
+    name = project_name(config)
+    return name[0] if name else "Py"
+
+
+def _get_copyright_year():
+    return datetime.datetime.now(datetime.UTC).year
+
+
+def _get_copyright_holder(config):
+    return copyright_holder(config)
+
+
+def _get_version_selector_html(config):
+    if not feature_enabled(config, "versioning"):
+        return ""
+    return (
+        '<div class="version-selector-wrap">'
+        '  <select id="version-selector" class="version-selector" aria-label="Select version">'
+        '    {config.get("_version_options", "")}'
+        "  </select>"
+        "</div>"
+    )
+
+
+def _get_header_search_html(config):
+    if not feature_enabled(config, "search"):
+        return ""
+    return (
+        '<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24" aria-hidden="true">'
+        '  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'
+        "</svg>"
+        '<input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">'
+        '<div id="search-results" class="search-results"></div>'
+    )
+
+
+def _get_header_nav_links(config):
+    links = header_links(config)
+    parts = []
+    for item in links:
+        name = item.get("name", "")
+        href = item.get("href", "index.html")
+        parts.append(f'<a href="{href}">{name}</a>')
+    return "\n      ".join(parts)
+
+
+def _get_footer_html(config):
+    text = footer_text(config)
+    if text:
+        return text
+    return (
+        f"&copy; {_get_copyright_year()} {_get_copyright_holder(config)}"
+        f" &middot; {project_name(config)} Documentation"
+    )
+
+
+def _get_search_preloads_html():
+    return ""
+
+
 def _render_template_placeholders(config):
     """Extract common template placeholders from config."""
-
-    def _get_logo_text():
-        name = project_name(config)
-        return name[0] if name else "Py"
-
-    def _get_copyright_year():
-        return datetime.datetime.now(datetime.UTC).year
-
-    def _get_copyright_holder():
-        return copyright_holder(config)
-
-    def _get_version_selector_html() -> str:
-        if not feature_enabled(config, "versioning"):
-            return ""
-        return (
-            '<div class="version-selector-wrap">'
-            '  <select id="version-selector" class="version-selector" aria-label="Select version">'
-            '    {config.get("_version_options", "")}'
-            "  </select>"
-            "</div>"
-        )
-
-    def _get_header_search_html() -> str:
-        if not feature_enabled(config, "search"):
-            return ""
-        return (
-            '<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24" aria-hidden="true">'
-            '  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'
-            "</svg>"
-            '<input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">'
-            '<div id="search-results" class="search-results"></div>'
-        )
-
-    def _get_header_nav_links():
-        links = header_links(config)
-        parts = []
-        for item in links:
-            name = item.get("name", "")
-            href = item.get("href", "index.html")
-            parts.append(f'<a href="{href}">{name}</a>')
-        return "\n      ".join(parts)
-
-    def _get_footer_html():
-        text = footer_text(config)
-        if text:
-            return text
-        return (
-            f"&copy; {_get_copyright_year()} {_get_copyright_holder()}"
-            f" &middot; {project_name(config)} Documentation"
-        )
-
-    def _get_search_preloads_html() -> str:
-        return ""
-
     return {
         "site_prefix": output_href("", config),
         "page_title": "",
         "project_name": project_name(config),
         "og_title": "",
         "og_description": "",
-        "logo_text": _get_logo_text(),
-        "version_selector_html": _get_version_selector_html(),
-        "header_search_html": _get_header_search_html(),
-        "header_nav_links": _get_header_nav_links(),
+        "logo_text": _get_logo_text(config),
+        "version_selector_html": _get_version_selector_html(config),
+        "header_search_html": _get_header_search_html(config),
+        "header_nav_links": _get_header_nav_links(config),
         "extra_nav_links": "",
         "sidebar": "",
         "subtitle_html": "",
@@ -140,8 +146,8 @@ def _render_template_placeholders(config):
         "features_config_json": json.dumps(features_state(config)),
         "custom_tags_json": json.dumps(custom_tags(config)),
         "copyright_year": _get_copyright_year(),
-        "copyright_holder": _get_copyright_holder(),
-        "footer_html": _get_footer_html(),
+        "copyright_holder": _get_copyright_holder(config),
+        "footer_html": _get_footer_html(config),
     }
 
 
@@ -242,21 +248,82 @@ def minify_html(html_input, config):
     return minified_html
 
 
-def build_page(slug, config, slug_page_keys) -> None:
-    """Build a single page from its markdown source."""
-    src_path = os.path.join(config["_src_dir"], f"{slug}.md")
-    if not os.path.exists(src_path):
-        print(f"  ⚠ Skipping {slug}.md (not found)")
-        return
-
-    with open(src_path, encoding="utf-8") as f:
-        raw = f.read()
-
-    meta, body_md = parse_frontmatter(raw)
+def _extract_page_metadata(slug, config, slug_page_keys, body_md):
+    """Extract page metadata from frontmatter."""
+    meta, body_md = parse_frontmatter(body_md)
     title = meta.get("title", slug.capitalize())
     subtitle = meta.get("subtitle", "")
     page_title = meta.get("page_title", title).replace("[ext]", "").strip()
     og_title = meta.get("og_title", title).replace("[ext]", "").strip()
+    return body_md, title, subtitle, page_title, og_title
+
+
+def _render_backlinks_and_related(body_md, body_html, slug, config, search_index):
+    """Render backlinks and related sections if applicable."""
+    backlinks_html = ""
+    related_html = ""
+    if not search_index:
+        return body_html, backlinks_html, related_html
+
+    page_data = next(
+        (p for p in search_index if slug in (p.get("slug"), p.get("source_slug"))),
+        None,
+    )
+    if not page_data:
+        return body_html, backlinks_html, related_html
+
+    has_backlinks_tag = "<backlinks>" in body_md
+    has_related_tag = "<related>" in body_md
+    no_backlinks = "<!no_backlinks>" in body_md
+    no_related = "<!no_related>" in body_md
+
+    if (
+        feature_enabled(config, "backlinks")
+        and page_data.get("backlinks")
+        and not no_backlinks
+    ):
+        backlinks_html = _render_backlinks(page_data["backlinks"], search_index)
+        if has_backlinks_tag:
+            body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
+            body_html = body_html.replace("<p><backlinks></p>\n", backlinks_html)
+            body_html = body_html.replace("<backlinks>", backlinks_html)
+
+    if (
+        feature_enabled(config, "related")
+        and page_data.get("related")
+        and not no_related
+    ):
+        related_html = _render_related(page_data["related"], search_index)
+        if has_related_tag:
+            body_html = body_html.replace("<p><related></p>", related_html)
+            body_html = body_html.replace("<p><related></p>\n", related_html)
+            body_html = body_html.replace("<related>", related_html)
+
+    return body_html, backlinks_html, related_html
+
+
+def _apply_feature_transformations(body_html, config):
+    """Apply feature-based HTML transformations."""
+    if feature_enabled(config, "code_highlighting"):
+        body_html = highlight_code_blocks(body_html)
+    if feature_enabled(config, "blockquotes"):
+        body_html = process_blockquotes(body_html)
+    if feature_enabled(config, "ext_tags"):
+        body_html = format_custom_tags(body_html, config)
+    return body_html
+
+
+def build_page(slug, config, slug_page_keys) -> None:
+    """Build a single page from its markdown source."""
+    src_path = Path(config["_src_dir"], f"{slug}.md")
+    if not src_path.exists():
+        print(f"  ⚠ Skipping {slug}.md (not found)")
+        return
+
+    raw = src_path.read_text(encoding="utf-8")
+    _meta, body_md, title, subtitle, page_title, og_title = _extract_page_metadata(
+        slug, config, slug_page_keys, raw
+    )
 
     if config.get("search_map") and feature_enabled(config, "auto_link"):
         body_md = auto_link_markdown(body_md, config["search_map"])
@@ -264,69 +331,21 @@ def build_page(slug, config, slug_page_keys) -> None:
     body_html, toc_tokens = convert_markdown(body_md)
     body_html = rewrite_md_links(body_html, slug, slug_page_keys)
 
-    # Auto-link bare filename references (e.g., config.json -> config.json.md)
     if feature_enabled(config, "auto_link"):
         body_html = auto_link_filenames(body_html, config.get("_slug_page_keys", {}))
 
-    # Process code references (in HTML, after markdown conversion)
     code_refs = []
     if feature_enabled(config, "code_references"):
         body_html, code_refs = process_code_references_html(body_html, config)
 
-    if feature_enabled(config, "code_highlighting"):
-        body_html = highlight_code_blocks(body_html)
-    if feature_enabled(config, "blockquotes"):
-        body_html = process_blockquotes(body_html)
-    if feature_enabled(config, "ext_tags"):
-        body_html = format_custom_tags(body_html, config)
+    body_html = _apply_feature_transformations(body_html, config)
 
-    # Handle <backlinks> and <related> tags
-    backlinks_html = ""
-    related_html = ""
     search_index = config.get("_search_index", [])
-    if search_index and (
-        page_data := next(
-            (
-                p
-                for p in search_index
-                if p.get("slug") == slug or p.get("source_slug") == slug
-            ),
-            None,
-        )
-    ):
-        # Check for tags in original markdown
-        has_backlinks_tag = "<backlinks>" in body_md
-        has_related_tag = "<related>" in body_md
-        # Check for disable tags
-        no_backlinks = "<!no_backlinks>" in body_md
-        no_related = "<!no_related>" in body_md
-
-        if (
-            feature_enabled(config, "backlinks")
-            and page_data.get("backlinks")
-            and not no_backlinks
-        ):
-            backlinks_html = _render_backlinks(page_data["backlinks"], search_index)
-            if has_backlinks_tag:
-                # Replace both paragraph-wrapped and bare tag
-                body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
-                body_html = body_html.replace("<p><backlinks></p>\n", backlinks_html)
-                body_html = body_html.replace("<backlinks>", backlinks_html)
-
-        if (
-            feature_enabled(config, "related")
-            and page_data.get("related")
-            and not no_related
-        ):
-            related_html = _render_related(page_data["related"], search_index)
-            if has_related_tag:
-                # Replace both paragraph-wrapped and bare tag
-                body_html = body_html.replace("<p><related></p>", related_html)
-                body_html = body_html.replace("<p><related></p>\n", related_html)
-                body_html = body_html.replace("<related>", related_html)
+    body_html, _backlinks_html, _related_html = _render_backlinks_and_related(
+        body_md, body_html, slug, config, search_index
+    )
 
     subtitle_html = f'<p class="subtitle">{subtitle}</p>' if subtitle else ""
-
     tagged_sections = _determine_tagged_sections(config)
     sidebar_html = build_toc_sidebar(
         toc_tokens, slug, sidebar(config), tagged_sections, config
@@ -358,9 +377,75 @@ def build_page(slug, config, slug_page_keys) -> None:
         out_html = add_internal_prefetch_links(out_html, config)
 
     out_name = slug_output_name(slug, config)
-    out_path = os.path.join(config["_out_dir"], out_name)
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(out_html)
+    out_path = Path(config["_out_dir"], out_name)
+    out_path.write_text(out_html, encoding="utf-8")
+
+
+def _strip_site_prefix(out_dir, stripped_prefix, backed_up):
+    """Strip site prefix from HTML files and back them up."""
+    if not stripped_prefix:
+        return
+
+    prefix_pat = re.compile(
+        rf'href=(["\']?){re.escape(stripped_prefix)}/([^"\'\s>]+)\1'
+    )
+    for html_file in out_dir.glob("*.html"):
+        raw = html_file.read_text(encoding="utf-8")
+        backup = out_dir / f".critical_orig_{html_file.stem}.html"
+        backup.write_text(raw, encoding="utf-8")
+        backed_up.append(backup)
+        rewritten = prefix_pat.sub(
+            lambda m: f"href={m.group(1)}{m.group(2)}{m.group(1)}",
+            raw,
+        )
+        html_file.write_text(rewritten, encoding="utf-8")
+
+
+def _run_critical_on_file(html_file, out_dir):
+    """Run critical on a single HTML file."""
+    cmd = [
+        "npx",
+        "critical",
+        str(html_file),
+        "--inline",
+        "--engine",
+        "static",
+        "--dimensions",
+        "390x844,1920x1080",
+        "--width",
+        "1920",
+        "--height",
+        "1080",
+    ]
+
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, check=False, cwd=str(out_dir)
+    )
+    if result.returncode != 0:
+        msg = f"Critical failed for {html_file.name}:\n{result.stderr}"
+        raise RuntimeError(msg)
+
+    optimized = result.stdout
+    if "</html>" not in optimized:
+        msg = f"Critical output for {html_file.name} looks truncated"
+        raise RuntimeError(msg)
+
+    html_file.write_text(optimized, encoding="utf-8")
+
+
+def _restore_backups(out_dir, backed_up):
+    """Restore original HTML for pages critical didn't inline, and clean up backups."""
+    for backup in backed_up:
+        target = out_dir / f"{backup.stem.replace('.critical_orig_', '')}.html"
+        if target.exists() and backup.exists():
+            target_content = target.read_text(encoding="utf-8")
+            if "data-critical" not in target_content:
+                target.write_text(
+                    backup.read_text(encoding="utf-8"),
+                    encoding="utf-8",
+                )
+        with contextlib.suppress(OSError):
+            backup.unlink()
 
 
 def optimize_all_pages(config) -> None:
@@ -385,11 +470,6 @@ def optimize_all_pages(config) -> None:
     if not out_dir.is_dir():
         return
 
-    # critical only follows relative stylesheet URLs from each HTML
-    # file's location. The production template uses absolute paths
-    # (e.g. href=/fr-docs/style.css), so rewrite them to relative
-    # paths first, run critical, then restore the absolute paths in
-    # the inlined output.
     site_prefix = normalized_site_prefix(config)
     stripped_prefix = (
         site_prefix.rstrip("/") if site_prefix and site_prefix != "/" else None
@@ -397,79 +477,11 @@ def optimize_all_pages(config) -> None:
     backed_up = []
 
     try:
-        if stripped_prefix:
-            # Match both quoted (href="/fr-docs/style.css") and unquoted
-            # (href=/fr-docs/style.css) forms. The minifier strips quotes,
-            # so both must be supported.
-            prefix_pat = re.compile(
-                rf'href=(["\']?){re.escape(stripped_prefix)}/([^"\'\s>]+)\1'
-            )
-            for html_file in out_dir.glob("*.html"):
-                raw = html_file.read_text(encoding="utf-8")
-                backup = out_dir / f".critical_orig_{html_file.stem}.html"
-                backup.write_text(raw, encoding="utf-8")
-                backed_up.append(backup)
-                # Strip the site prefix so href=/fr-docs/style.css
-                # becomes href=style.css (relative to the HTML file).
-                rewritten = prefix_pat.sub(
-                    lambda m: f"href={m.group(1)}{m.group(2)}{m.group(1)}",
-                    raw,
-                )
-                html_file.write_text(rewritten, encoding="utf-8")
-
-        # Run critical per-file with the static engine (the only engine
-        # that resolves relative stylesheet URLs from a single file).
-        # Use --dimensions to render for both mobile (390x844, Moto G
-        # Power) and desktop (1920x1080) so the inlined critical CSS
-        # includes the @media(width<=640px) rules that mobile needs.
+        _strip_site_prefix(out_dir, stripped_prefix, backed_up)
         for html_file in out_dir.glob("*.html"):
-            cmd = [
-                "npx",
-                "critical",
-                str(html_file),
-                "--inline",
-                "--engine",
-                "static",
-                "--dimensions",
-                "390x844,1920x1080",
-                "--width",
-                "1920",
-                "--height",
-                "1080",
-            ]
-
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, check=False, cwd=str(out_dir)
-            )
-            if result.returncode != 0:
-                msg = f"Critical failed for {html_file.name}:\n{result.stderr}"
-                raise RuntimeError(msg)
-
-            optimized = result.stdout
-            if "</html>" not in optimized:
-                msg = f"Critical output for {html_file.name} looks truncated"
-                raise RuntimeError(msg)
-
-            html_file.write_text(optimized, encoding="utf-8")
-
+            _run_critical_on_file(html_file, out_dir)
     finally:
-        # Restore the original absolute-path HTML for any page critical
-        # didn't inline (e.g. it failed or skipped).
-        for backup in backed_up:
-            target = out_dir / f"{backup.stem.replace('.critical_orig_', '')}.html"
-            if target.exists() and backup.exists():
-                try:
-                    target_content = target.read_text(encoding="utf-8")
-                    # Only restore if critical didn't inline CSS
-                    if "data-critical" not in target_content:
-                        target.write_text(
-                            backup.read_text(encoding="utf-8"),
-                            encoding="utf-8",
-                        )
-                except OSError:
-                    pass
-            with contextlib.suppress(OSError):
-                backup.unlink()
+        _restore_backups(out_dir, backed_up)
 
 
 def minify_all_pages(config) -> None:

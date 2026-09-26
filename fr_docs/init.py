@@ -387,7 +387,7 @@ def main(docs_dir_str="docs") -> None:
     config_path = docs_dir / "config.json"
     config = DEFAULT_CONFIG.copy()
     config["project_name"] = docs_dir.name.replace("-", " ").replace("_", " ").title()
-    with open(config_path, "w", encoding="utf-8") as f:
+    with config_path.open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
     print(f"  ✓ Created {config_path}")
 

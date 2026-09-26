@@ -5,19 +5,75 @@ import json
 import os
 import re
 import subprocess
+from contextlib import suppress
 from pathlib import Path
 
 from .config_accessors import git_meta_filename, live_label, out_dir, src_dir
 from .slug import slug_page_key
 
 
+def _parse_commit_log(log_out):
+    """Parse git log output into commits and versions."""
+    commits = []
+    versions = []
+    for line in log_out.splitlines():
+        if not line:
+            continue
+
+        parts = line.split("\x01", 1)
+
+        if len(parts) == 2:
+            h, msg = parts
+        else:
+            h = parts[0]
+            msg = ""
+
+        commits.append(h)
+        if m := re.match(r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)", msg):
+            code = m[1].upper()
+            label = m[2].strip()
+            versions.append({"code": code, "commit": h, "label": label})
+
+    return commits, versions
+
+
+def _build_pages_by_commit(out, slugs):
+    """Build pages_by_commit mapping from git log output."""
+    pages_by_commit = {}
+    current_commit = None
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        if re.fullmatch(r"[0-9a-f]{7,40}", line):
+            current_commit = line
+        elif current_commit:
+            slug = Path(line).stem
+            if slug in slugs:
+                pages_by_commit.setdefault(current_commit, []).append(slug)
+    return pages_by_commit
+
+
+def _build_slug_last_commits(slugs, config, repo_root):
+    """Build slug_last_commit mapping for each slug."""
+    slug_last_commit = {}
+    for slug in slugs:
+        src = src_map_path(config).replace("{slug}", slug)
+        out = subprocess.check_output(
+            ["git", "log", "-1", "--pretty=format:%H", "--", src],
+            cwd=repo_root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+
+        if out and re.fullmatch(r"[0-9a-f]{7,40}", out):
+            slug_last_commit[slug] = out
+    return slug_last_commit
+
+
 def collect_git_metadata(config):
-    """Collect git metadata including repo info, commits, and versions.\n
-        :param config: Configuration dictionary
-        :type config: dict
-        :return: Git metadata dictionary
-        :rtype: dict
-    """
+    """Collect git metadata including repo info, commits, and versions."""
     git_meta = {
         "repo": None,
         "commits": [],
@@ -38,8 +94,7 @@ def collect_git_metadata(config):
         text=True,
     ).strip()
 
-    m = re.search(r"github.com[:/](.+?)(?:\.git)?$", remote_url)
-    if m:
+    if m := re.search(r"github.com[:/](.+?)(?:\.git)?$", remote_url):
         git_meta["repo"] = m[1]
 
     log_out = subprocess.check_output(
@@ -48,26 +103,9 @@ def collect_git_metadata(config):
         text=True,
     )
 
-    for line in log_out.splitlines():
-        if not line:
-            continue
-
-        parts = line.split("\x01", 1)
-
-        if len(parts) == 2:
-            h, msg = parts
-
-        else:
-            h = parts[0]
-            msg = ""
-
-        git_meta["commits"].append(h)
-        m = re.match(r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)", msg)
-
-        if m:
-            code = m.group(1).upper()
-            label = m.group(2).strip()
-            git_meta["versions"].append({"code": code, "commit": h, "label": label})
+    commits, versions = _parse_commit_log(log_out)
+    git_meta["commits"] = commits
+    git_meta["versions"] = versions
 
     slugs = list(config.get("_slug_page_keys", {}).keys())
     for slug in slugs:
@@ -95,34 +133,8 @@ def collect_git_metadata(config):
         stderr=subprocess.DEVNULL,
     )
 
-    current_commit = None
-    for line in out.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-
-        if re.fullmatch(r"[0-9a-f]{7,40}", line):
-            current_commit = line
-
-        elif current_commit:
-            # line is a source path like "src/index.md"
-            slug = Path(line).stem
-            if slug in slugs:
-                git_meta["pages_by_commit"].setdefault(current_commit, []).append(slug)
-
-    # Also record which commit each slug was last modified at, so the
-    # client can fall back to a single-commit lookup.
-    for slug in slugs:
-        src = src_map_path(config).replace("{slug}", slug)
-        out = subprocess.check_output(
-            ["git", "log", "-1", "--pretty=format:%H", "--", src],
-            cwd=repo_root,
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-
-        if out and re.fullmatch(r"[0-9a-f]{7,40}", out):
-            git_meta.setdefault("slug_last_commit", {})[slug] = out
+    git_meta["pages_by_commit"] = _build_pages_by_commit(out, slugs)
+    git_meta["slug_last_commit"] = _build_slug_last_commits(slugs, config, repo_root)
 
     return git_meta
 
@@ -139,26 +151,16 @@ def src_map_path(config) -> str:
     """
     docs_dir = Path(config.get("_docs_dir", "."))
     repo_root = docs_dir.parent
-    rel = os.path.relpath(docs_dir / src_dir(config), repo_root)
+    rel = Path(os.path.relpath(docs_dir / src_dir(config), repo_root))
     return f"{rel}/{{slug}}.md"
 
 
 def write_git_metadata(git_meta, config) -> None:
-    """Write git metadata to disk.\n
-        :param git_meta: Git metadata dictionary
-        :type git_meta: dict
-        :param config: Configuration dictionary
-        :type config: dict
-    """
-    try:
-        with open(
-            os.path.join(config["_out_dir"], git_meta_filename(config)),
-            "w",
-            encoding="utf-8",
-        ) as gf:
-            json.dump(git_meta, gf, separators=(",", ":"))
-    except (OSError, TypeError):
-        pass
+    """Write git metadata to disk."""
+    with suppress(OSError, TypeError):
+        Path(config["_out_dir"], git_meta_filename(config)).write_text(
+            json.dumps(git_meta, separators=(",", ":")), encoding="utf-8"
+        )
 
 
 def build_version_options(git_meta, config):
@@ -206,7 +208,7 @@ def build_version_options(git_meta, config):
             )
 
         config["_version_options"] = "\n".join(opts)
-    except (KeyError, TypeError, AttributeError):
+    except KeyError, TypeError, AttributeError:
         config["_version_options"] = f'<option value="">{live_label(config)}</option>'
 
     return config["_version_options"]

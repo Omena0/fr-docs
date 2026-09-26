@@ -3,6 +3,7 @@
 import html
 import re
 import threading
+from itertools import starmap
 from urllib.parse import urljoin, urlsplit
 
 import markdown
@@ -447,9 +448,9 @@ def auto_link_markdown(md_text, search_map):
         esc = esc.replace("[", "&#91;").replace("]", "&#93;")
         return f"<code>{esc}</code>"
 
-    transformed_inlines = [
-        _transform_inline_content(content, has_c) for content, has_c in inline_codes
-    ]
+    transformed_inlines = list(
+        starmap(_transform_inline_content, inline_codes)
+    )
 
     def _restore_link(m):
         return links[int(m.group(1))]

@@ -1,13 +1,12 @@
 """Search index building for fr-docs."""
 
-import os
 import re
+from pathlib import Path
 
 from .config_accessors import feature_enabled
 from .frontmatter import parse_frontmatter
 from .slug import normalize_slug, slug_output_name, slug_page_key
 from .utils import output_href
-
 
 # Symbol extraction patterns for various languages
 SYMBOL_PATTERNS = {
@@ -407,11 +406,10 @@ def _compute_backlinks_and_related(search_index, config) -> None:
     # First pass: collect all links from each page
     page_links = {}  # slug -> set of target slugs
     for item in search_index:
-        src = os.path.join(config["_src_dir"], f"{item['source_slug']}.md")
+        src = Path(config["_src_dir"], f"{item['source_slug']}.md")
 
-        if os.path.exists(src):
-            with open(src, encoding="utf-8") as f:
-                raw = f.read()
+        if src.exists():
+            raw = src.read_text(encoding="utf-8")
 
             _, body_md = parse_frontmatter(raw)
 
@@ -504,11 +502,10 @@ def build_search_index(slugs, config):
     search_index = []
 
     for slug in slugs:
-        src = os.path.join(config["_src_dir"], f"{slug}.md")
+        src = Path(config["_src_dir"], f"{slug}.md")
 
-        if os.path.exists(src):
-            with open(src, encoding="utf-8") as f:
-                raw = f.read()
+        if src.exists():
+            raw = src.read_text(encoding="utf-8")
 
             meta, body_md = parse_frontmatter(raw)
 

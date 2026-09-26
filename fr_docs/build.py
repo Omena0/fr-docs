@@ -7,6 +7,7 @@ Converts Markdown source files into a static HTML site using configuration.
 import argparse
 import concurrent.futures
 import contextlib
+import glob
 import json
 import os
 import re
@@ -26,9 +27,11 @@ from .config_accessors import (
     project_name,
     search_index_filename,
     sidebar,
-    src_dir,
     workers,
     zstd_level,
+)
+from .config_accessors import (
+    src_dir as config_src_dir,
 )
 from .git import build_version_options, collect_git_metadata
 from .html_pipeline import build_page, minify_all_pages, optimize_all_pages
@@ -43,7 +46,7 @@ from .utils import normalized_site_prefix
 
 def _compute_hash(data: str) -> str:
     """Compute xxhash hash of string data."""
-    return xxhash.xxh3_128_hexdigest(data.encode("utf-8"))
+    return xxhash.xxh3_128_hexdigest(data.encode())
 
 
 def _best_zstd_level(raw: bytes, configured: int) -> int:
@@ -190,9 +193,39 @@ def _write_zstd_json(config, filename, value):
     return len(raw), len(compressed)
 
 
+def _should_skip_file(rel_path, ignore_dirs, seen_paths):
+    """Check if a file should be skipped based on hidden dirs, ignore dirs, or duplicates."""
+    rel_parts = rel_path.parts
+    if any(p.startswith(".") for p in rel_parts):
+        return True
+    if any(p in ignore_dirs for p in rel_parts):
+        return True
+    rel_str = str(rel_path)
+    return rel_str in seen_paths
+
+
+def _process_pattern(pattern, search_dir, ignore_dirs, seen_paths, source_files):
+    """Process a single glob pattern within a search directory."""
+    for match in glob.glob(str(search_dir / pattern), recursive=True):
+        file_path = Path(match)
+        if not file_path.is_file():
+            continue
+
+        try:
+            rel_path = file_path.relative_to(search_dir)
+        except ValueError:
+            continue
+
+        if _should_skip_file(rel_path, ignore_dirs, seen_paths):
+            continue
+
+        seen_paths.add(str(rel_path))
+        with contextlib.suppress(OSError, UnicodeDecodeError):
+            source_files[str(rel_path)] = file_path.read_text(encoding="utf-8")
+
+
 def collect_source_files(config):
     """Collect source code files for code reference feature using glob patterns."""
-    import glob as glob_module
 
     source_files = {}
     docs_path = Path(config["_docs_dir"])
@@ -295,43 +328,11 @@ def collect_source_files(config):
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
-        try:
+        with contextlib.suppress(OSError):
             for pattern in patterns:
-                # Use glob with the search directory as base
-                for match in glob_module.glob(
-                    str(search_dir / pattern), recursive=True
-                ):
-                    file_path = Path(match)
-                    if not file_path.is_file():
-                        continue
-
-                    # Get relative path from search_dir for key
-                    try:
-                        rel_path = file_path.relative_to(search_dir)
-                    except ValueError:
-                        continue
-
-                    rel_str = str(rel_path)
-
-                    # Skip hidden directories in the relative path
-                    rel_parts = rel_path.parts
-                    if any(p.startswith(".") for p in rel_parts):
-                        continue
-                    if any(p in ignore_dirs for p in rel_parts):
-                        continue
-
-                    # Deduplicate by relative path string
-                    if rel_str in seen_paths:
-                        continue
-                    seen_paths.add(rel_str)
-
-                    try:
-                        content = file_path.read_text(encoding="utf-8")
-                        source_files[rel_str] = content
-                    except OSError, UnicodeDecodeError:
-                        pass
-        except OSError:
-            pass
+                _process_pattern(
+                    pattern, search_dir, ignore_dirs, seen_paths, source_files
+                )
 
     return source_files
 
@@ -372,7 +373,7 @@ def main(argv=None) -> None:
     config["production"] = bool(args.production)
 
     print(f"📖 Building {project_name(config)} docs...")
-    print(f"   Source: {src_dir(config)}")
+    print(f"   Source: {config_src_dir(config)}")
     print(f"   Output: {out_dir(config)}")
     print(f"   Mode: {'production' if args.production else 'development'}")
     if args.production:
@@ -392,7 +393,7 @@ def main(argv=None) -> None:
 
     # Copy static assets (minifying JS/CSS when production)
     docs_path = Path(config["_docs_dir"])
-    os.makedirs(Path(config["_out_dir"]), exist_ok=True)
+    Path(config["_out_dir"]).mkdir(parents=True, exist_ok=True)
     for legacy_name in (
         "file_index.json",
         "git_meta.json",
@@ -411,7 +412,7 @@ def main(argv=None) -> None:
             else:
                 shutil.copyfile(src, dst)
         except FileNotFoundError:
-            print(f"File not found: {os.getcwd()}, {src}->{dst}")
+            print(f"File not found: {Path.cwd()}, {src}->{dst}")
         except OSError as e:
             print(f"OSError: {e}")
 
@@ -430,13 +431,12 @@ def main(argv=None) -> None:
     slugs = get_all_slugs(config)
 
     # Also check for any .md files not in the sidebar
-    if os.path.isdir(config["_src_dir"]):
-        for dirpath, _dirnames, filenames in os.walk(config["_src_dir"]):
+    src_dir = Path(config["_src_dir"])
+    if src_dir.is_dir():
+        for dirpath, _dirnames, filenames in os.walk(src_dir):
             for fname in filenames:
                 if fname.endswith(".md"):
-                    rel = os.path.relpath(
-                        os.path.join(dirpath, fname), config["_src_dir"]
-                    )
+                    rel = os.path.relpath(Path(dirpath, fname), src_dir)
                     s = rel[:-3]
                     if s not in slugs:
                         slugs.append(s)
@@ -450,16 +450,13 @@ def main(argv=None) -> None:
     config["_search_index"] = search_index
 
     # Compress search index
-    search_json = json.dumps(search_index, separators=(",", ":"))
-    search_raw = search_json.encode("utf-8")
-    cctx = zstandard.ZstdCompressor(
+    search_raw = json.dumps(search_index, separators=(",", ":")).encode("utf-8")
+    compressed = zstandard.ZstdCompressor(
         level=_best_zstd_level(search_raw, zstd_level(config))
-    )
-    compressed = cctx.compress(search_raw)
-    search_index_path = os.path.join(config["_out_dir"], search_index_filename(config))
-    os.makedirs(os.path.dirname(search_index_path), exist_ok=True)
-    with open(search_index_path, "wb") as sf:
-        sf.write(compressed)
+    ).compress(search_raw)
+    search_index_path = Path(config["_out_dir"], search_index_filename(config))
+    search_index_path.parent.mkdir(parents=True, exist_ok=True)
+    search_index_path.write_bytes(compressed)
 
     if args.production:
         config["_search_index_inline"] = ""
@@ -520,10 +517,9 @@ def main(argv=None) -> None:
                 cache.update_cache(cache_key, content_hash)
             else:
                 # Load from per-file cache
-                with open(highlight_cache_file, "rb") as f:
-                    compressed = f.read()
+                compressed = highlight_cache_file.read_bytes()
                 decompressed = zstandard.ZstdDecompressor().decompress(compressed)
-                source_highlights[path] = json.loads(decompressed.decode("utf-8"))
+                source_highlights[path] = json.loads(decompressed.decode())
 
         # Write the highlights to zstd
         if source_highlights:
@@ -573,8 +569,8 @@ def main(argv=None) -> None:
     # Build pages
     slugs_to_build = []
     for slug in slugs:
-        src = os.path.join(config["_src_dir"], f"{slug}.md")
-        if os.path.exists(src):
+        src = Path(config["_src_dir"], f"{slug}.md")
+        if src.exists():
             slugs_to_build.append(slug)
 
     if slugs_to_build:

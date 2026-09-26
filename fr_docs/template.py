@@ -154,18 +154,18 @@ def build_toc_sidebar(
     toc_tokens, current_slug, sidebar_config, tagged_sections=None, config=None
 ):
     """Build the sidebar with 'On This Page' TOC at the top, then nav sections.\n
-        :param toc_tokens: Table of contents tokens
-        :type toc_tokens: list[dict]
-        :param current_slug: Current page slug
-        :type current_slug: str
-        :param sidebar_config: Sidebar configuration
-        :type sidebar_config: list[tuple]
-        :param tagged_sections: Tagged sections mapping
-        :type tagged_sections: dict[str, str] | None
-        :param config: Configuration dictionary
-        :type config: dict | None
-        :return: Combined sidebar HTML
-        :rtype: str
+    :param toc_tokens: Table of contents tokens
+    :type toc_tokens: list[dict]
+    :param current_slug: Current page slug
+    :type current_slug: str
+    :param sidebar_config: Sidebar configuration
+    :type sidebar_config: list[tuple]
+    :param tagged_sections: Tagged sections mapping
+    :type tagged_sections: dict[str, str] | None
+    :param config: Configuration dictionary
+    :type config: dict | None
+    :return: Combined sidebar HTML
+    :rtype: str
     """
     nav = build_sidebar_html(current_slug, sidebar_config, tagged_sections, config)
     if not toc_tokens:

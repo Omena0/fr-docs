@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 DEFAULT_CONFIG = {
     "$schema": "https://raw.githubusercontent.com/Omena0/fr-docs/main/config.schema.json",
     "project_name": "Project Name",
@@ -62,8 +61,8 @@ def _merge(base, override):
 
 def load_config(config_path=None):
     """Load and validate the documentation builder configuration.\n
-        :param config_path: Optional path to config file
-        :type config_path: str | Path | None
+    :param config_path: Optional path to config file
+    :type config_path: str | Path | None
     """
     if config_path is None:
         config_path = Path.cwd() / "config.json"

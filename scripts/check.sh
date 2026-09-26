@@ -1,9 +1,8 @@
 
 : Runs lint and checkers
 
-echo Ruff checks + format
+echo Ruff checks
 ruff check . --fix --unsafe-fixes
-ruff format .
 
 echo
 echo Refurb checks

@@ -19,8 +19,7 @@ from fr_db.types.rowview import RowView
 from fr_db.types.table import Table
 
 
-class TableView(Table):
-    ...
+class TableView(Table): ...
 ```
 
 ### Imports
@@ -56,17 +55,17 @@ if TYPE_CHECKING:
 - Target ~2-4 statements per block; the goal is to separate each logical step, not to pad.
 
 ```python
-    def _ensure_built(self) -> None:
-        ...
-        if not self._dirty:        # block 1
-            return
+def _ensure_built(self) -> None:
+    ...
+    if not self._dirty:  # block 1
+        return
 
-        self._dirty = False        # block 2
-        self._values.clear()
-        self._shared = False
+    self._dirty = False  # block 2
+    self._values.clear()
+    self._shared = False
 
-        table = self._table        # block 3
-        ...
+    table = self._table  # block 3
+    ...
 ```
 
 - Tightly coupled statements stay in one block. A mutation immediately followed by a check on its result is one block: no blank line.
@@ -134,10 +133,7 @@ Arguments/elements indent **one level (4 spaces) deeper** than the line holding 
 ```
 
 ```python
-            raise ValueError(
-                f"Duplicate value {value!r} "
-                f"for unique index {self.column!r}"
-            )
+raise ValueError(f"Duplicate value {value!r} for unique index {self.column!r}")
 ```
 
 ## Multiline function signatures
@@ -181,10 +177,7 @@ elif (
 - Adjacent string literals are implicitly concatenated; put the trailing space **inside** the string (`f"... "`) when the join point needs a space.
 
 ```python
-            raise ValueError(
-                f"Duplicate value {value!r} "
-                f"for unique index {self.column!r}"
-            )
+raise ValueError(f"Duplicate value {value!r} for unique index {self.column!r}")
 ```
 
 ## Comprehensions
@@ -192,10 +185,7 @@ elif (
 - Opening `{` stays on the assignment line. `key: value` on its own line, one level deeper than the assignment; `for` / `if` clauses on following lines at the same indent; closing `}` aligned with the assignment.
 
 ```python
-        index._values = {
-            value: ids.copy()
-            for value, ids in self._values.items()
-        }
+index._values = {value: ids.copy() for value, ids in self._values.items()}
 ```
 
 ## Classes
@@ -218,23 +208,23 @@ Order of members:
 - A **tuple** of quoted strings, in development order (the order attributes are set up), **not** sorted. No type annotation.
 
 ```python
-__slots__ = ('_base', '_delta', '_deleted', '_len')
+__slots__ = ("_base", "_delta", "_deleted", "_len")
 ```
 
 - Keep on a single line while it fits (roughly ≤ ~100 chars). When it gets too long, wrap to one name per line; if it is only barely over the limit, the names may share a single line inside the parentheses. No trailing comma.
 
 ```python
 __slots__ = (
-    'database',
-    'name',
-    '_rows',
-    '_columns',
-    'indexes',
-    '_transaction',
-    'operations',
-    '_default_columns',
-    '_in_transaction',
-    '_query_cache'
+    "database",
+    "name",
+    "_rows",
+    "_columns",
+    "indexes",
+    "_transaction",
+    "operations",
+    "_default_columns",
+    "_in_transaction",
+    "_query_cache",
 )
 ```
 
@@ -247,9 +237,9 @@ otherwise, just add to the end of the list.
 
 ```python
 __all__ = [
-    'Database',
-    'Table',
-    'TableView',
+    "Database",
+    "Table",
+    "TableView",
 ]
 ```
 
@@ -261,13 +251,13 @@ __all__ = [
 - **Summary + params** (the common case for methods with parameters): summary ending with `\n` on the opening `"""` line, then `:param:` / `:type:` / `:raises:` / `:return:` / `:rtype:` fields one level deeper.
 
 ```python
-    def __init__(self, column: str, unique: bool = False):
-        """Initialize an index on the given column.\n
-            :param column: The column name to index
-            :type column: str
-            :param unique: Whether the index enforces uniqueness
-            :type unique: bool
-        """
+def __init__(self, column: str, unique: bool = False):
+    """Initialize an index on the given column.\n
+    :param column: The column name to index
+    :type column: str
+    :param unique: Whether the index enforces uniqueness
+    :type unique: bool
+    """
 ```
 
 - **Summary + description** (methods with no parameters, just prose): summary on the opening `"""` line, a blank line, then the description at the **opening `"` indent** (not deeper); closing `"""` aligned with the opening.
@@ -284,10 +274,10 @@ __all__ = [
 - **Class docstrings** (no params): opening `"""` on its own line, summary/description one level deeper; closing `"""` aligned with the opening.
 
 ```python
-    """
-        Index for fast lookups on a column.
-        Supports unique constraints and lazy rebuilding.
-    """
+"""
+Index for fast lookups on a column.
+Supports unique constraints and lazy rebuilding.
+"""
 ```
 
 - **Summary + params + description** (rare): summary + params (params one level deeper), blank line, description at the opening `"` indent, closing aligned.

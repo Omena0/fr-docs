@@ -15,7 +15,6 @@ Generate fast, fully featured, modern documentation pages from markdown for GitH
 - [Quickstart](https://omena0.dev/fr-docs/quickstart)
 - [Configuration](https://omena0.dev/fr-docs/config.json)
 - [Showcase](https://omena0.dev/fr-docs/showcase)
-- [Pagespeed](https://omena0.dev/fr-docs/pagespeed) — performance metrics
 
 ## Overview
 
