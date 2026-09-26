@@ -23,11 +23,11 @@
     "git_meta_filename": "git_meta.zst"
   },
   "source_files": {
-    "search_dirs": ["parent", "src_parent", "docs"],
     "patterns": [
       "docs/src/*.md",
       "docs/*.js",
-      "docs/*.css"
+      "docs/*.css",
+      "fr_docs/*.py"
     ],
     "ignore_dirs": []
   },
