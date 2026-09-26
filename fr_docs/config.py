@@ -77,9 +77,15 @@ def load_config(config_path=None):
         project_name_specified = "project_name" in loaded
 
     config_path = config_path.resolve()
-    docs_dir = (
-        Path(config["docs_dir"]).resolve() if config["docs_dir"] else config_path.parent
-    )
+    docs_dir_raw = config["docs_dir"]
+    if not docs_dir_raw:
+        docs_dir = config_path.parent
+    else:
+        docs_dir_path = Path(docs_dir_raw)
+        docs_dir = (
+            docs_dir_path if docs_dir_path.is_absolute()
+            else (config_path.parent / docs_dir_path).resolve()
+        )
     src_dir = docs_dir / config["src_dir"] if config["src_dir"] else docs_dir / "src"
     out_dir = docs_dir / config["out_dir"] if config["out_dir"] else docs_dir / "site"
 

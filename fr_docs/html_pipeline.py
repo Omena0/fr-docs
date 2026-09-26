@@ -68,18 +68,24 @@ def _render_template_placeholders(config):
     def _get_version_selector_html():
         if not feature_enabled(config, "versioning"):
             return ""
-        return f"""<div class="version-selector-wrap">
-          <select id="version-selector" class="version-selector" aria-label="Select version">
-              {config.get("_version_options", "")}
-          </select>
-      </div>"""
+        return (
+            '<div class="version-selector-wrap">'
+            '  <select id="version-selector" class="version-selector" aria-label="Select version">'
+            '    {config.get("_version_options", "")}'
+            '  </select>'
+            '</div>'
+        )
 
     def _get_header_search_html():
         if not feature_enabled(config, "search"):
             return ""
-        return """<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">
-      <div id="search-results" class="search-results"></div>"""
+        return (
+            '<svg class="header-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24" aria-hidden="true">'
+            '  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'
+            '</svg>'
+            '<input type="text" id="header-search" placeholder="Search docs… (Ctrl+K)" autocomplete="off">'
+            '<div id="search-results" class="search-results"></div>'
+        )
 
     def _get_search_preloads_html():
         return ""
@@ -520,13 +526,17 @@ def _render_backlinks(backlinks, search_index, config):
             items.append(f'<li><a href="{url}">{title}</a></li>')
     if not items:
         return ""
-    return f"""<h2>Backlinks</h2>
-<details class="backlinks-details">
-  <summary>Show {len(items)} backlinks</summary>
-  <ul>
-    {"".join(items)}
-  </ul>
-</details>"""
+    return (
+        f'<h2>Backlinks</h2>'
+        f'<details class="backlinks-details">'
+        f'  <summary>'
+        f'    Show {len(items)} backlinks'
+        f'  </summary>'
+        f'  <ul>'
+        f'    {"".join(items)}'
+        f'  </ul>'
+        f'</details>'
+    )
 
 
 def _render_related(related, search_index, config):
@@ -539,11 +549,15 @@ def _render_related(related, search_index, config):
             url = page.get("url", f"{rel_slug}.html")
             title = page.get("title", rel_slug)
             items.append(f'<li><a href="{url}">{title}</a></li>')
+
     if not items:
         return ""
-    return f"""<h2>Related</h2>
-<div class="related">
-  <ul>
-    {"".join(items)}
-  </ul>
-</div>"""
+
+    return (
+        f'<h2>Related</h2>'
+        f'<div class="related">'
+        f'  <ul>'
+        f'    {"".join(items)}'
+        f'  </ul>'
+        f'</div>'
+    )
