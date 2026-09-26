@@ -854,7 +854,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // `marked` (included via CDN in the template).
     if (!meta.repo) return;
     const page = currentPage || 'index.html';
-    const rawHtmlUrl = `https://raw.githubusercontent.com/${meta.repo}/${commit}/docs/site/${page}`;
+    // Use the site path embedded by the builder (e.g. "site", "docs/site",
+    // or a custom build.out_dir value) instead of a hardcoded "docs/site".
+    const sitePath = meta.site_path || 'docs/site';
+    const rawHtmlUrl = `https://raw.githubusercontent.com/${meta.repo}/${commit}/${sitePath}/${page}`;
     try {
       const r = await fetch(rawHtmlUrl, { cache: 'no-store' });
       if (r && r.ok) {

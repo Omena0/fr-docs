@@ -7,7 +7,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from .config_accessors import git_meta_filename, live_label, src_dir
+from .config_accessors import git_meta_filename, live_label, src_dir, out_dir
 from .slug import slug_page_key
 
 
@@ -20,6 +20,9 @@ def collect_git_metadata(config):
         "versions": [],
         "src_map": {},
         "pages_by_commit": {},
+        "slug_last_commit": {},
+        "site_path": str(out_dir(config)),
+        "src_path": src_map_path(config).replace("{slug}", ""),
     }
 
     try:
@@ -36,7 +39,7 @@ def collect_git_metadata(config):
 
         m = re.search(r"github.com[:/](.+?)(?:\.git)?$", remote_url)
         if m:
-            m.group(1)
+            git_meta["repo"] = m.group(1)
 
         try:
             log_out = subprocess.check_output(
@@ -66,7 +69,62 @@ def collect_git_metadata(config):
 
         slugs = list(config.get("_slug_page_keys", {}).keys())
         for slug in slugs:
-            git_meta["src_map"][slug_page_key(slug, config)] = src_map_path(config)
+            git_meta["src_map"][slug_page_key(slug, config)] = (
+                src_map_path(config).replace("{slug}", slug)
+            )
+
+        # Populate pages_by_commit: which slugs exist at each commit.
+        # Used by the client to filter the sidebar when viewing a
+        # historical version.
+        if slugs:
+            try:
+                slugs_arg = "\n".join(slugs)
+                out = subprocess.check_output(
+                    [
+                        "git", "log", "--pretty=format:%H",
+                        "--name-only", "--",
+                    ]
+                    + [src_map_path(config).replace("{slug}", s) for s in slugs],
+                    cwd=repo_root,
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                )
+                current_commit = None
+                for line in out.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if re.fullmatch(r"[0-9a-f]{7,40}", line):
+                        current_commit = line
+                    elif current_commit:
+                        # line is a source path like "src/index.md"
+                        slug = Path(line).stem
+                        if slug in slugs:
+                            git_meta["pages_by_commit"].setdefault(
+                                current_commit, []
+                            ).append(slug)
+            except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+                pass
+
+        # Also record which commit each slug was last modified at, so the
+        # client can fall back to a single-commit lookup.
+        if slugs:
+            try:
+                for slug in slugs:
+                    src = src_map_path(config).replace("{slug}", slug)
+                    try:
+                        out = subprocess.check_output(
+                            ["git", "log", "-1", "--pretty=format:%H", "--", src],
+                            cwd=repo_root,
+                            text=True,
+                            stderr=subprocess.DEVNULL,
+                        ).strip()
+                        if out and re.fullmatch(r"[0-9a-f]{7,40}", out):
+                            git_meta.setdefault("slug_last_commit", {})[slug] = out
+                    except (FileNotFoundError, subprocess.CalledProcessError):
+                        pass
+            except (FileNotFoundError, subprocess.CalledProcessError, OSError):
+                pass
 
     except FileNotFoundError, subprocess.CalledProcessError, OSError:
         pass
@@ -75,8 +133,15 @@ def collect_git_metadata(config):
 
 
 def src_map_path(config):
-    """Return the source markdown path pattern used in git metadata."""
-    return f"{src_dir(config)}/{{slug}}.md"
+    """Return the source markdown path relative to the repo root.
+
+    e.g. ``docs/src/{slug}.md``. The client uses this to fetch
+    historical markdown from ``raw.githubusercontent.com``.
+    """
+    docs_dir = Path(config.get("_docs_dir", "."))
+    repo_root = docs_dir.parent
+    rel = os.path.relpath(docs_dir / src_dir(config), repo_root)
+    return f"{rel}/{{slug}}.md"
 
 
 def write_git_metadata(git_meta, config):

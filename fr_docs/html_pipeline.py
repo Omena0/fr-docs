@@ -17,6 +17,7 @@ from .config_accessors import (
     features_state,
     footer_text,
     header_links,
+    out_dir,
     project_name,
     sidebar,
 )

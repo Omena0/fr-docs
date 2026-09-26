@@ -151,7 +151,14 @@ def src_dir(config):
 
 
 def out_dir(config):
-    return config.get("_out_dir", "site")
+    """Return the output directory name relative to docs_dir.
+
+    Respects ``build.out_dir`` first, then the top-level ``out_dir``
+    key, falling back to ``site``.
+    """
+    build = config.get("build", {}) if isinstance(config.get("build"), dict) else {}
+    raw = build.get("out_dir") or config.get("out_dir") or "site"
+    return str(raw)
 
 
 def docs_dir(config):

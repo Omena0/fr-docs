@@ -87,7 +87,8 @@ def load_config(config_path=None):
             else (config_path.parent / docs_dir_path).resolve()
         )
     src_dir = docs_dir / config["src_dir"] if config["src_dir"] else docs_dir / "src"
-    out_dir = docs_dir / config["out_dir"] if config["out_dir"] else docs_dir / "site"
+    out_dir_raw = config.get("build", {}).get("out_dir") or config.get("out_dir") or "site"
+    out_dir = docs_dir / out_dir_raw if not Path(out_dir_raw).is_absolute() else Path(out_dir_raw)
 
     config["_project_name_specified"] = project_name_specified
     config["_config_path"] = str(config_path)
