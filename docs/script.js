@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Click handler for search results (handles both regular links and coderef links)
-  searchResults.addEventListener('click', (e) => {
+  searchResults.addEventListener('click', async (e) => {
     const link = e.target.closest('.search-hit');
     if (!link) return;
 
@@ -587,6 +587,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const line = parseInt(match[2], 10);
         const refs = parseCodeRefs();
         const ref = refs.find(r => r.file === file && r.line === line);
+        // Ensure source files are loaded before showing panel
+        await loadSourceFiles();
         if (ref) {
           showCodePanel(ref);
         } else {
