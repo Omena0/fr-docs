@@ -474,7 +474,7 @@ def optimize_all_pages(config) -> None:
     stripped_prefix = (
         site_prefix.rstrip("/") if site_prefix and site_prefix != "/" else None
     )
-    backed_up = []
+    backed_up: list[Path] = []
 
     try:
         _strip_site_prefix(out_dir, stripped_prefix, backed_up)

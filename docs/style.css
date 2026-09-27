@@ -257,6 +257,7 @@ html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px)
   padding: 8px 20px 4px;
   font-size: .7rem;
   font-weight: 700;
+  font-family: var(--font-sans);
   text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--text-muted);
@@ -276,6 +277,9 @@ html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px)
 .sidebar-heading.collapsed::before { transform: rotate(-45deg); }
 
 .sidebar-links {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 4px;
   overflow: hidden;
   max-height: 600px;
   transition: max-height .25s ease, opacity .2s ease;
@@ -286,13 +290,13 @@ html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px)
   opacity: 0;
 }
 
-.sidebar-links { list-style: none; padding: 0; margin: 0 0 4px; }
 .sidebar-links a {
   display: block;
   padding: 5px 20px 5px 28px;
   color: var(--sidebar-text);
   text-decoration: none;
   font-size: .835rem;
+  font-family: var(--font-sans);
   border-left: 2px solid transparent;
   transition: .15s;
 }
@@ -327,6 +331,7 @@ html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px)
   color: var(--sidebar-text);
   text-decoration: none;
   font-size: .8rem;
+  font-family: var(--font-sans);
   border-left: 2px solid transparent;
   transition: .15s;
 }
@@ -512,7 +517,7 @@ pre code {
 .copy-btn.copied { background: var(--green); }
 
 /* Mobile: always show copy button on code blocks (touch-only, no mouse) */
-@media (any-pointer: coarse) and not (any-pointer: fine) {
+@media (any-pointer: coarse) and (not (any-pointer: fine)) {
   .code-wrap .copy-btn {
     opacity: 1;
     transform: translateY(0);

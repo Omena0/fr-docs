@@ -429,13 +429,13 @@ def _compute_backlinks_and_related(search_index, config) -> None:
             page_links[item["slug"]] = resolved
 
     # Compute backlinks (reverse links)
-    backlinks = {item["slug"]: set() for item in search_index}
+    backlinks: dict[str, set[str]] = {item["slug"]: set() for item in search_index}
     for source_slug, targets in page_links.items():
         for target_slug in targets:
             backlinks[target_slug].add(source_slug)
 
     # Compute related pages (simple: pages that share links or are linked together)
-    related = {item["slug"]: set() for item in search_index}
+    related: dict[str, set[str]] = {item["slug"]: set() for item in search_index}
     for item in search_index:
         # Pages that link to the same targets
         source_links = page_links.get(item["slug"], set())

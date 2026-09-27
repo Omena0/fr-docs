@@ -135,7 +135,7 @@ def build_sidebar_html(current_slug, sidebar_config, tagged_sections=None, confi
         parts.extend(
             (
                 '<div class="sidebar-section">',
-                f'  <div class="sidebar-heading{" collapsed" if collapsed else ""}" data-section="{key}">{heading}{tag_badge}',
+                f'  <div class="sidebar-heading{" collapsed" if collapsed else ""}" data-section="{key}">{heading}{tag_badge}</div>',
                 '  <ul class="sidebar-links">',
             )
         )

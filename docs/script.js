@@ -1525,6 +1525,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     document.querySelectorAll('a[href]').forEach(link => {
+      // Skip topbar/header navigation links - no hover preview needed
+      if (link.closest('.header-nav')) return;
+
       const href = link.getAttribute('href');
       if (!href) return;
 
