@@ -1539,8 +1539,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const isSearchCodeRef = href.startsWith('#coderef:');
 
       let hoverTimeout = null;
+      let lastMouseX = 0;
+      let lastMouseY = 0;
+
+      link.addEventListener('mousemove', (e) => {
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        if (previewTooltip && previewTooltip.style.opacity === '1') {
+          previewTooltip.style.left = `${e.clientX + 15}px`;
+          previewTooltip.style.top = `${e.clientY + 15}px`;
+        }
+      });
 
       link.addEventListener('mouseenter', async (e) => {
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
         hoverTimeout = setTimeout(async () => {
           if (isCodeRef) {
             const refId = link.dataset.coderefId;
@@ -1563,7 +1576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
                   <div class="preview-code">${preview.highlightedLines}</div>
                 `;
-                showPreviewTooltip(e.clientX, e.clientY, content, isCode = true);
+                showPreviewTooltip(lastMouseX, lastMouseY, content, isCode = true);
               }
             }
           } else if (isSearchCodeRef) {
@@ -1582,7 +1595,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   </div>
                   <div class="preview-code">${preview.highlightedLines}</div>
                 `;
-                showPreviewTooltip(e.clientX, e.clientY, content, isCode = true);
+                showPreviewTooltip(lastMouseX, lastMouseY, content, isCode = true);
               }
             }
           } else if (!href.startsWith('#')) {
@@ -1593,22 +1606,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="preview-header">${preview.title || ''}</div>
                 <div class="preview-description">${preview.description || ''}</div>
               `;
-              showPreviewTooltip(e.clientX, e.clientY, content, isCode = false);
+              showPreviewTooltip(lastMouseX, lastMouseY, content, isCode = false);
             }
           }
         }, 300); // 300ms delay before showing preview
-      });
-
-      link.addEventListener('mouseleave', () => {
-        if (hoverTimeout) clearTimeout(hoverTimeout);
-        hidePreviewTooltip();
-      });
-
-      link.addEventListener('mousemove', (e) => {
-        if (previewTooltip && previewTooltip.style.opacity === '1') {
-          previewTooltip.style.left = `${e.clientX + 15}px`;
-          previewTooltip.style.top = `${e.clientY + 15}px`;
-        }
       });
     });
   }
