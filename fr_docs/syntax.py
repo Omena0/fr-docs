@@ -182,9 +182,7 @@ def format_custom_tags(html_text, config=None):
         return f'<span class="{cls}">{display}</span>'
 
     return (
-        html_text
-        if not tags
-        else re.compile(r"\[(" + "|".join(re.escape(t) for t in tags) + r")\]").sub(
+        re.compile(r"\[(" + "|".join(re.escape(t) for t in tags) + r")\]").sub(
             _repl, html_text
-        )
+        ) if tags else html_text
     )

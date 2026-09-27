@@ -248,7 +248,7 @@ def minify_html(html_input, config):
     return minified_html
 
 
-def _extract_page_metadata(slug, config, slug_page_keys, body_md):
+def _extract_page_metadata(slug, body_md):
     """Extract page metadata from frontmatter."""
     meta, body_md = parse_frontmatter(body_md)
     title = meta.get("title", slug.capitalize())
@@ -321,8 +321,8 @@ def build_page(slug, config, slug_page_keys) -> None:
         return
 
     raw = src_path.read_text(encoding="utf-8")
-    _meta, body_md, title, subtitle, page_title, og_title = _extract_page_metadata(
-        slug, config, slug_page_keys, raw
+    body_md, title, subtitle, page_title, og_title = _extract_page_metadata(
+        slug, raw
     )
 
     if config.get("search_map") and feature_enabled(config, "auto_link"):
