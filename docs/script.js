@@ -1120,9 +1120,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const lines = content.split(/\r?\n/);
     const escapedName = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const patterns = [
-      new RegExp(`^\\s*(?:async\\s+)?def\\s+${escapedName}\\s*\\(`),
-      new RegExp(`^\\s*(?:export\\s+)?(?:async\\s+)?function\\s+${escapedName}\\s*\\(`),
-      new RegExp(`^\\s*(?:export\\s+)?(?:const|let|var)\\s+${escapedName}\\s*=`)
+      new RegExp(`^[^\S\n]*(?:async\\s+)?def\\s+${escapedName}\\s*\\(`),
+      new RegExp(`^[^\S\n]*(?:export\\s+)?(?:async\\s+)?function\\s+${escapedName}\\s*\\(`),
+      new RegExp(`^[^\S\n]*(?:export\\s+)?(?:const|let|var)\\s+${escapedName}\\s*=`)
     ];
     let definition = -1;
     for (let i = 0; i < lines.length; i++) {
@@ -1134,13 +1134,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (definition < 0) return null;
 
     let start = definition;
-    while (start > 0 && /^\s*@/.test(lines[start - 1])) start--;
+    while (start > 0 && /^[^\S\n]*@/.test(lines[start - 1])) start--;
     let end = lines.length - 1;
-    if (/^\s*(?:async\s+)?def\s/.test(lines[definition])) {
-      const indent = (lines[definition].match(/^\s*/) || [''])[0].length;
+    if (/^[^\S\n]*(?:async\s+)?def\s/.test(lines[definition])) {
+      const indent = (lines[definition].match(/^[^\S\n]*/) || [''])[0].length;
       end = definition;
       for (let i = definition + 1; i < lines.length; i++) {
-        if (lines[i].trim() && (lines[i].match(/^\s*/) || [''])[0].length <= indent) {
+        if (lines[i].trim() && (lines[i].match(/^[^\S\n]*/) || [''])[0].length <= indent) {
           end = i - 1;
           break;
         }

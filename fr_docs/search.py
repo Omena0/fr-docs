@@ -9,148 +9,152 @@ from .slug import normalize_slug, slug_output_name, slug_page_key
 from .utils import output_href
 
 # Symbol extraction patterns for various languages
+# Use [^\S\n]* instead of \s* after ^ to avoid matching newlines
+# (which would cause incorrect line numbers when there are blank lines)
+HWS = r"[^\S\n]*"  # Horizontal whitespace only (space, tab, not newline)
+
 SYMBOL_PATTERNS = {
     "python": [
-        (re.compile(r"^\s*def\s+(\w+)", re.MULTILINE), "function"),
-        (re.compile(r"^\s*class\s+(\w+)", re.MULTILINE), "class"),
-        (re.compile(r"^\s*async\s+def\s+(\w+)", re.MULTILINE), "function"),
+        (re.compile(rf"^{HWS}def\s+(\w+)", re.MULTILINE), "function"),
+        (re.compile(rf"^{HWS}class\s+(\w+)", re.MULTILINE), "class"),
+        (re.compile(rf"^{HWS}async\s+def\s+(\w+)", re.MULTILINE), "function"),
         (
-            re.compile(r"^\s*@(\w+)\s*\n\s*def\s+(\w+)", re.MULTILINE),
+            re.compile(rf"^{HWS}@(\w+){HWS}\n{HWS}def\s+(\w+)", re.MULTILINE),
             "decorator_function",
         ),
     ],
     "javascript": [
         (
             re.compile(
-                r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)", re.MULTILINE
+                rf"^{HWS}(?:export\s+)?(?:async\s+)?function\s+(\w+)", re.MULTILINE
             ),
             "function",
         ),
         (
             re.compile(
-                r"^\s*(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>",
+                rf"^{HWS}(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>",
                 re.MULTILINE,
             ),
             "function",
         ),
-        (re.compile(r"^\s*class\s+(\w+)", re.MULTILINE), "class"),
-        (re.compile(r"^\s*(?:export\s+)?const\s+(\w+)\s*=", re.MULTILINE), "variable"),
+        (re.compile(rf"^{HWS}class\s+(\w+)", re.MULTILINE), "class"),
+        (re.compile(rf"^{HWS}(?:export\s+)?const\s+(\w+)\s*=", re.MULTILINE), "variable"),
     ],
     "typescript": [
         (
             re.compile(
-                r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)", re.MULTILINE
+                rf"^{HWS}(?:export\s+)?(?:async\s+)?function\s+(\w+)", re.MULTILINE
             ),
             "function",
         ),
         (
             re.compile(
-                r"^\s*(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>",
+                rf"^{HWS}(?:export\s+)?const\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>",
                 re.MULTILINE,
             ),
             "function",
         ),
-        (re.compile(r"^\s*class\s+(\w+)", re.MULTILINE), "class"),
-        (re.compile(r"^\s*interface\s+(\w+)", re.MULTILINE), "interface"),
-        (re.compile(r"^\s*type\s+(\w+)", re.MULTILINE), "type"),
-        (re.compile(r"^\s*enum\s+(\w+)", re.MULTILINE), "enum"),
+        (re.compile(rf"^{HWS}class\s+(\w+)", re.MULTILINE), "class"),
+        (re.compile(rf"^{HWS}interface\s+(\w+)", re.MULTILINE), "interface"),
+        (re.compile(rf"^{HWS}type\s+(\w+)", re.MULTILINE), "type"),
+        (re.compile(rf"^{HWS}enum\s+(\w+)", re.MULTILINE), "enum"),
     ],
     "rust": [
         (
-            re.compile(r"^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)", re.MULTILINE),
+            re.compile(rf"^{HWS}(?:pub\s+)?(?:async\s+)?fn\s+(\w+)", re.MULTILINE),
             "function",
         ),
-        (re.compile(r"^\s*(?:pub\s+)?struct\s+(\w+)", re.MULTILINE), "struct"),
-        (re.compile(r"^\s*(?:pub\s+)?enum\s+(\w+)", re.MULTILINE), "enum"),
-        (re.compile(r"^\s*(?:pub\s+)?trait\s+(\w+)", re.MULTILINE), "trait"),
-        (re.compile(r"^\s*(?:pub\s+)?mod\s+(\w+)", re.MULTILINE), "module"),
-        (re.compile(r"^\s*(?:pub\s+)?const\s+(\w+)", re.MULTILINE), "const"),
-        (re.compile(r"^\s*(?:pub\s+)?static\s+(\w+)", re.MULTILINE), "static"),
+        (re.compile(rf"^{HWS}(?:pub\s+)?struct\s+(\w+)", re.MULTILINE), "struct"),
+        (re.compile(rf"^{HWS}(?:pub\s+)?enum\s+(\w+)", re.MULTILINE), "enum"),
+        (re.compile(rf"^{HWS}(?:pub\s+)?trait\s+(\w+)", re.MULTILINE), "trait"),
+        (re.compile(rf"^{HWS}(?:pub\s+)?mod\s+(\w+)", re.MULTILINE), "module"),
+        (re.compile(rf"^{HWS}(?:pub\s+)?const\s+(\w+)", re.MULTILINE), "const"),
+        (re.compile(rf"^{HWS}(?:pub\s+)?static\s+(\w+)", re.MULTILINE), "static"),
     ],
     "go": [
-        (re.compile(r"^\s*func\s+(?:\([^)]*\)\s+)?(\w+)", re.MULTILINE), "function"),
-        (re.compile(r"^\s*type\s+(\w+)\s+struct", re.MULTILINE), "struct"),
-        (re.compile(r"^\s*type\s+(\w+)\s+interface", re.MULTILINE), "interface"),
-        (re.compile(r"^\s*const\s+(\w+)", re.MULTILINE), "const"),
-        (re.compile(r"^\s*var\s+(\w+)", re.MULTILINE), "variable"),
+        (re.compile(rf"^{HWS}func\s+(?:\([^)]*\)\s+)?(\w+)", re.MULTILINE), "function"),
+        (re.compile(rf"^{HWS}type\s+(\w+)\s+struct", re.MULTILINE), "struct"),
+        (re.compile(rf"^{HWS}type\s+(\w+)\s+interface", re.MULTILINE), "interface"),
+        (re.compile(rf"^{HWS}const\s+(\w+)", re.MULTILINE), "const"),
+        (re.compile(rf"^{HWS}var\s+(\w+)", re.MULTILINE), "variable"),
     ],
     "java": [
         (
             re.compile(
-                r"^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?\w+\s+(\w+)\s*\(",
+                rf"^{HWS}(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?\w+\s+(\w+)\s*\(",
                 re.MULTILINE,
             ),
             "method",
         ),
         (
             re.compile(
-                r"^\s*(?:public|private|protected)?\s*class\s+(\w+)", re.MULTILINE
+                rf"^{HWS}(?:public|private|protected)?\s*class\s+(\w+)", re.MULTILINE
             ),
             "class",
         ),
         (
             re.compile(
-                r"^\s*(?:public|private|protected)?\s*interface\s+(\w+)", re.MULTILINE
+                rf"^{HWS}(?:public|private|protected)?\s*interface\s+(\w+)", re.MULTILINE
             ),
             "interface",
         ),
         (
             re.compile(
-                r"^\s*(?:public|private|protected)?\s*enum\s+(\w+)", re.MULTILINE
+                rf"^{HWS}(?:public|private|protected)?\s*enum\s+(\w+)", re.MULTILINE
             ),
             "enum",
         ),
     ],
     "c": [
         (
-            re.compile(r"^\s*(?:static\s+)?\w+\s+(\w+)\s*\([^)]*\)\s*{", re.MULTILINE),
+            re.compile(rf"^{HWS}(?:static\s+)?\w+\s+(\w+)\s*\([^)]*\)\s*{{", re.MULTILINE),
             "function",
         ),
-        (re.compile(r"^\s*struct\s+(\w+)", re.MULTILINE), "struct"),
-        (re.compile(r"^\s*enum\s+(\w+)", re.MULTILINE), "enum"),
+        (re.compile(rf"^{HWS}struct\s+(\w+)", re.MULTILINE), "struct"),
+        (re.compile(rf"^{HWS}enum\s+(\w+)", re.MULTILINE), "enum"),
     ],
     "cpp": [
         (
-            re.compile(r"^\s*(?:static\s+)?\w+\s+(\w+)\s*\([^)]*\)\s*{", re.MULTILINE),
+            re.compile(rf"^{HWS}(?:static\s+)?\w+\s+(\w+)\s*\([^)]*\)\s*{{", re.MULTILINE),
             "function",
         ),
-        (re.compile(r"^\s*class\s+(\w+)", re.MULTILINE), "class"),
-        (re.compile(r"^\s*struct\s+(\w+)", re.MULTILINE), "struct"),
-        (re.compile(r"^\s*enum\s+(\w+)", re.MULTILINE), "enum"),
-        (re.compile(r"^\s*namespace\s+(\w+)", re.MULTILINE), "namespace"),
+        (re.compile(rf"^{HWS}class\s+(\w+)", re.MULTILINE), "class"),
+        (re.compile(rf"^{HWS}struct\s+(\w+)", re.MULTILINE), "struct"),
+        (re.compile(rf"^{HWS}enum\s+(\w+)", re.MULTILINE), "enum"),
+        (re.compile(rf"^{HWS}namespace\s+(\w+)", re.MULTILINE), "namespace"),
     ],
     "csharp": [
         (
             re.compile(
-                r"^\s*(?:public|private|protected|internal)?\s*(?:static\s+)?\w+\s+(\w+)\s*\(",
+                rf"^{HWS}(?:public|private|protected|internal)?\s*(?:static\s+)?\w+\s+(\w+)\s*\(",
                 re.MULTILINE,
             ),
             "method",
         ),
         (
             re.compile(
-                r"^\s*(?:public|private|protected|internal)?\s*class\s+(\w+)",
+                rf"^{HWS}(?:public|private|protected|internal)?\s*class\s+(\w+)",
                 re.MULTILINE,
             ),
             "class",
         ),
         (
             re.compile(
-                r"^\s*(?:public|private|protected|internal)?\s*interface\s+(\w+)",
+                rf"^{HWS}(?:public|private|protected|internal)?\s*interface\s+(\w+)",
                 re.MULTILINE,
             ),
             "interface",
         ),
         (
             re.compile(
-                r"^\s*(?:public|private|protected|internal)?\s*enum\s+(\w+)",
+                rf"^{HWS}(?:public|private|protected|internal)?\s*enum\s+(\w+)",
                 re.MULTILINE,
             ),
             "enum",
         ),
         (
             re.compile(
-                r"^\s*(?:public|private|protected|internal)?\s*struct\s+(\w+)",
+                rf"^{HWS}(?:public|private|protected|internal)?\s*struct\s+(\w+)",
                 re.MULTILINE,
             ),
             "struct",
