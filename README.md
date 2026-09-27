@@ -32,6 +32,7 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
   - **Hover previews**: Hover a link to see the title and description, hover a code ref to see a code preview.
   - **Code references**: Link to a source code files, lines, line ranges, or symbols. Automatically generates a clickable code ref.
 - **Auto versioned**: Automatically switch to older documentation based on github tags.
+
 <sup><sub>(requires site/ to be commited into the repo)</sup></sub>
 - **Auto minification**: Minifies HTML, CSS and JS and inlines Critical CSS.
 - **Same-origin fonts**: Serve fonts from the same origin. Download once before build, serve forever.
@@ -43,4 +44,4 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 
 - [Fr-docs](https://omena0.dev/fr-docs/)
 - [PyJavaBridge](https://omena0.dev/PyJavaBridge)
-<sub><sup>(This project was originally a docs generator specific to PJB)</sup></sub>
+<sub><sup>(Legacy)</sup></sub>
