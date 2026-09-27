@@ -36,10 +36,10 @@
     "live_label": "Live"
   },
   "features": {
-    "backlinks": true,
-    "related": true,
+    "backlinks": false,
+    "related": false,
     "auto_link": true,
-    "versioning": true,
+    "versioning": false,
     "search": {
       "enabled": true,
       "include": {

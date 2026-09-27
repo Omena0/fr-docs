@@ -1372,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let previewTooltip = null;
   let previewHideTimeout = null;
 
-  function createPreviewTooltip(isCode) {
+  function createPreviewTooltip() {
     if (previewTooltip) return previewTooltip;
     previewTooltip = document.createElement('div');
     previewTooltip.className = 'link-preview-tooltip';
