@@ -31,8 +31,7 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
   - **Frontmatter metadata**: Title and description as optional frontmatter.
   - **Hover previews**: Hover a link to see the title and description, hover a code ref to see a code preview.
   - **Code references**: Link to a source code files, lines, line ranges, or symbols. Automatically generates a clickable code ref.
-- **Auto versioned**: Automatically switch to older documentation based on github tags.
-
+- **Auto versioned**: Automatically switch to older documentation based on github tags.<br>
 <sup><sub>(requires site/ to be commited into the repo)</sup></sub>
 - **Auto minification**: Minifies HTML, CSS and JS and inlines Critical CSS.
 - **Same-origin fonts**: Serve fonts from the same origin. Download once before build, serve forever.
