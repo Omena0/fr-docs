@@ -22,43 +22,25 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 
 ### Key Features
 
-- **Config-driven**: All settings defined in `config.json`
-  - Project name, URL, description, and sidebar structure
-  - Search, code references, auto-linking, and related pages
-  - Build options: workers, minification, zstd level, and HTML optimization
+- **Toggleable features**: Disable any features in the config.
+- **Search**: Search pages, headers, source code files, or symbols. Fuzzy matching included.
+- **Markdown features**: Feature-complete markdown features, including:
+  - **Code highlighting**: Highlight code blocks with `fastpylight`
+  - **Copy code blocks**: Copy buttons on multiline code blocks, inline copy code blocks.
+  - **Tables**: Auto convert markdown tables
+  - **Frontmatter metadata**: Title and description as optional frontmatter.
+  - **Hover previews**: Hover a link to see the title and description, hover a code ref to see a code preview.
+  - **Code references**: Link to a source code files, lines, line ranges, or symbols. Automatically generates a clickable code ref.
+- **Auto versioned**: Automatically switch to older documentation based on github tags.
+-# (requires site/ to be commited into the repo)
+- **Auto minification**: Minifies HTML, CSS and JS and inlines Critical CSS.
+- **Same-origin fonts**: Serve fonts from the same origin. Download once before build, serve forever.
+- **Page preloading**: Preload page links for faster browsing.
+- **Configurable elements**: Configure project name, icon, copyright, topbar links, etc.
 
-- **Zero-config setup**: Works out of the box with sensible defaults
-- **Search**: Full-text search with Zstandard-compressed index
-  - Symbol-level search across all source files
-  - File index for browsing source code
-  - Per-file source highlights with caching
-
-- **Optimized**: HTML minification, critical CSS/JS inlining, Zstd compression
-  - Critical CSS extracted and inlined for both mobile and desktop viewports
-  - JavaScript and CSS minified with `terser` and `html-minifier-next`
-  - Zstd-compressed search index, source files, highlights, and metadata
-  - Adaptive zstd level selection (scans 1..configured, picks the smallest)
-
-- **Multi-environment**: Different configs for production, staging, development
-- **Parallel builds**: Threaded page generation for faster builds
-- **Git integration**: Automatic metadata extraction from git commits
-  - Version options derived from commit messages (e.g. `4D - fix bug` → `4.4.0`)
-  - Commit SHA and message embedded in the version selector
-
-- **Local font serving**: Fonts downloaded at build time and served from the site's own origin
-  - No third-party font round-trips or 404s when Google changes the URL scheme
-  - `font-display: swap` with metric-compatible `font-ascent-descent` fallbacks
-  - Primary body font weight preloaded for faster first paint
-
-- **Sidebar**: Collapsible sections with auto-expansion
-  - The section containing the current page is expanded on load
-  - Single-page sections and single-section sites are expanded by default
-
-- **Inline copy commands**: Prefix inline code with `c` to create copy-on-click links
-- **Code references**: Auto-link bare filename references to their source files
-- **Backlinks and related pages**: Automatically generated navigation between related content
 
 ### Projects that use fr-docs
 
 - [Fr-docs](https://omena0.dev/fr-docs/)
 - [PyJavaBridge](https://omena0.dev/PyJavaBridge)
+-# (This project was originally a docs generator specific to PJB)
