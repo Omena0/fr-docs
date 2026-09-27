@@ -207,6 +207,7 @@ def extract_symbols_from_content(content, language):
         return []
 
     symbols = []
+    lines = content.split("\n")
     patterns = SYMBOL_PATTERNS[language]
 
     for pattern, symbol_type in patterns:
@@ -220,15 +221,33 @@ def extract_symbols_from_content(content, language):
             # Get line number
             line_num = content[: match.start()].count("\n") + 1
 
-            # Get some context (the line itself)
-            lines = content.split("\n")
+            # Get context (the line itself)
             context = lines[line_num - 1].strip() if line_num <= len(lines) else ""
+
+            # Compute end_line for functions/methods to enable full function highlighting
+            end_line = None
+            if symbol_type in ("function", "method", "decorator_function") and language == "python":
+                # Find function end by indentation
+                indent_match = re.match(r"^[^\S\n]*", lines[line_num - 1])
+                indent = len(indent_match.group(0)) if indent_match else 0
+                end_line = line_num
+                for i in range(line_num, len(lines)):
+                    if lines[i].strip():
+                        indent_match = re.match(r"^[^\S\n]*", lines[i])
+                        line_indent = len(indent_match.group(0)) if indent_match else 0
+                        if line_indent <= indent:
+                            end_line = i
+                            break
+                        end_line = i + 1
+                    else:
+                        end_line = i + 1
 
             symbols.append(
                 {
                     "name": name,
                     "type": symbol_type,
                     "line": line_num,
+                    "end_line": end_line,
                     "context": context[:200],  # Limit context length
                 }
             )
@@ -263,6 +282,7 @@ def build_symbol_index(source_files, config):
                 "name": symbol["name"],
                 "type": symbol["type"],
                 "line": symbol["line"],
+                "end_line": symbol["end_line"],
                 "context": symbol["context"],
                 "language": language,
             }

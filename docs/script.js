@@ -509,9 +509,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (score > 0) {
           const hit = {
-            url: `#coderef:${sym.file}:${sym.line}`,
+            url: `#coderef:${sym.file}:${sym.line}${sym.end_line ? '-' + sym.end_line : ''}`,
             title: `${sym.name} (${sym.type})`,
-            text: `in ${sym.file}:${sym.line} — ${sym.context || ''}`,
+            text: `in ${sym.file}:${sym.line}${sym.end_line ? '-' + sym.end_line : ''} — ${sym.context || ''}`,
             score: score,
             type: 'symbol',
             symbol: sym
@@ -581,18 +581,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const href = link.getAttribute('href');
     if (href && href.startsWith('#coderef:')) {
       e.preventDefault();
-      const match = href.match(/^#coderef:([^:]+):(\d+)$/);
+      const match = href.match(/^#coderef:([^:]+):(\d+)(?:-(\d+))?$/);
       if (match) {
         const file = match[1];
         const line = parseInt(match[2], 10);
+        const endLine = match[3] ? parseInt(match[3], 10) : null;
         const refs = parseCodeRefs();
         const ref = refs.find(r => r.file === file && r.line === line);
         // Ensure source files are loaded before showing panel
         await loadSourceFiles();
         if (ref) {
+          if (endLine) ref.end_line = endLine;
           showCodePanel(ref);
         } else {
-          showCodePanel({ file, line, id: 'search-result' });
+          showCodePanel({ file, line, end_line: endLine, id: 'search-result' });
         }
       }
     }
@@ -1348,16 +1350,18 @@ document.addEventListener('DOMContentLoaded', () => {
           console.log(`found coderef: ${searchRefLink}`);
           e.preventDefault();
           const href = searchRefLink.getAttribute('href');
-          const match = href.match(/^#coderef:([^:]+):(\d+)$/);
+          const match = href.match(/^#coderef:([^:]+):(\d+)(?:-(\d+))?$/);
           if (match) {
             const file = match[1];
             const line = parseInt(match[2], 10);
+            const endLine = match[3] ? parseInt(match[3], 10) : null;
             const refs = parseCodeRefs();
             const ref = refs.find(r => r.file === file && r.line === line);
             if (ref) {
+              if (endLine) ref.end_line = endLine;
               showCodePanel(ref);
             } else {
-              showCodePanel({ file, line, id: 'search-result' });
+              showCodePanel({ file, line, end_line: endLine, id: 'search-result' });
             }
           }
           return;
@@ -1583,12 +1587,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           } else if (isSearchCodeRef) {
             // Handle search result code reference links
-            const match = href.match(/^#coderef:([^:]+):(\d+)$/);
+            const match = href.match(/^#coderef:([^:]+):(\d+)(?:-(\d+))?$/);
             if (match) {
               console.log(`opening coderef from fragment: ${match}`);
               const file = match[1];
               const line = parseInt(match[2], 10);
-              const preview = await fetchCodePreview(file, line);
+              const endLine = match[3] ? parseInt(match[3], 10) : null;
+              const preview = await fetchCodePreview(file, line, endLine);
               if (preview) {
                 const content = `
                   <div class="preview-header">
