@@ -3,8 +3,8 @@
 Usage:
     python -m fr_docs build [--production] [--symlink] [--config CONFIG]
     fr-docs build [--production] [--symlink] [--config CONFIG]
-    python -m fr_docs init [--dir DIR]
-    fr-docs init [--dir DIR]
+    python -m fr_docs init [DIR] [config]
+    fr-docs init [DIR] [config]
 """
 
 import argparse
@@ -16,12 +16,19 @@ from .init import main as init_main
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        prog="fr-docs", description="Fast static documentation generator"
+        prog="fr-docs",
+        description="Fast static documentation generator",
     )
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    subparsers = parser.add_subparsers(
+        dest="command",
+        help="Available commands",
+    )
 
     # Build command
-    build_parser = subparsers.add_parser("build", help="Build the documentation site")
+    build_parser = subparsers.add_parser(
+        "build",
+        help="Build the documentation site",
+    )
     build_parser.add_argument(
         "--production",
         action="store_true",
@@ -30,10 +37,13 @@ def main() -> None:
     build_parser.add_argument(
         "--symlink",
         action="store_true",
-        help="Create a {site_prefix}/ symlink dir under site/ so a local "
-        "production build can be opened in a browser. Off by default: in "
-        "CI the whole docs/site/ tree is deployed as-is, and a nested "
-        "fr-docs/ symlink folder would show up as omena0.dev/fr-docs/fr-docs/.",
+        help=(
+            "Create a {site_prefix}/ symlink dir under site/ so a local "
+            "production build can be opened in a browser. Off by default: "
+            "in CI the whole docs/site/ tree is deployed as-is, and a nested "
+            "fr-docs/ symlink folder would show up as "
+            "omena0.dev/fr-docs/fr-docs/."
+        ),
     )
     build_parser.add_argument(
         "--config",
@@ -42,7 +52,8 @@ def main() -> None:
 
     # Init command
     init_parser = subparsers.add_parser(
-        "init", help="Initialize a new documentation project"
+        "init",
+        help="Initialize a new documentation project",
     )
     init_parser.add_argument(
         "dir",
@@ -50,24 +61,42 @@ def main() -> None:
         default="docs",
         help="Directory to initialize (default: docs)",
     )
+    init_parser.add_argument(
+        "target",
+        nargs="?",
+        choices=["config"],
+        default=None,
+        help="Initialize only the configuration.",
+    )
 
-    # Parse args
     args = parser.parse_args(sys.argv[1:])
 
     if args.command == "build":
-        # Convert namespace to list for build_main
-        build_argv = []
+        build_argv: list[str] = []
+
         if args.production:
             build_argv.append("--production")
+
         if args.symlink:
             build_argv.append("--symlink")
+
         if args.config:
             build_argv.extend(["--config", args.config])
+
         build_main(build_argv)
-    elif args.command == "init":
-        init_main(args.dir)
-    # Default to build for backwards compatibility
-    elif len(sys.argv) > 1 and sys.argv[1] in (
+        return
+
+    if args.command == "init":
+        # `fr-docs init config` means "initialize config in ./docs".
+        if args.dir == "config" and args.target is None:
+            init_main("docs", True)
+            return
+
+        init_main(args.dir, args.target == "config")
+        return
+
+    # Default to build for backwards compatibility.
+    if len(sys.argv) > 1 and sys.argv[1] in (
         "--production",
         "--symlink",
         "--config",
@@ -75,9 +104,10 @@ def main() -> None:
         "-h",
     ):
         build_main(sys.argv[1:])
-    else:
-        parser.print_help()
-        sys.exit(1)
+        return
+
+    parser.print_help()
+    sys.exit(1)
 
 
 if __name__ == "__main__":

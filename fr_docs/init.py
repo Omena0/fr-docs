@@ -306,7 +306,6 @@ def download_file(url, dest_path) -> bool | None:
         print(f"  ✗ Failed to download {url}: {e}")
         return False
 
-
 def create_uv_venv(docs_dir) -> None:
     """Create a uv virtual environment on Linux if uv is installed."""
     if platform.system() != "Linux":
@@ -337,7 +336,6 @@ def create_uv_venv(docs_dir) -> None:
     except Exception as e:  # noqa: BLE001
         print(f"  ✗ Failed to create virtual environment: {e}")
 
-
 def create_github_workflow(docs_dir) -> None:
     """Create .github/workflows/pages.yml for GitHub Pages deployment."""
     workflow_dir = docs_dir.parent / ".github" / "workflows"
@@ -353,7 +351,6 @@ def create_github_workflow(docs_dir) -> None:
         print(f"  ✓ Created GitHub Pages workflow at {workflow_path}")
     except Exception as e:  # noqa: BLE001
         print(f"  ✗ Failed to create GitHub workflow: {e}")
-
 
 def create_default_files(docs_dir, project_name) -> None:
     """Create default markdown files in src directory."""
@@ -372,8 +369,7 @@ def create_default_files(docs_dir, project_name) -> None:
         filepath.write_text(content, encoding="utf-8")
         print(f"  ✓ Created {filepath}")
 
-
-def main(docs_dir_str="docs") -> None:
+def main(docs_dir_str="docs", config_only=False) -> None:
     """Initialize a new documentation project."""
     docs_dir = Path(docs_dir_str).resolve()
 
@@ -390,6 +386,9 @@ def main(docs_dir_str="docs") -> None:
     with config_path.open("w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
     print(f"  ✓ Created {config_path}")
+
+    if config_only:
+        return
 
     # Create default markdown files
     create_default_files(docs_dir, config["project_name"])
@@ -416,7 +415,6 @@ def main(docs_dir_str="docs") -> None:
     print(f"  2. Add markdown files to {docs_dir}/src/")
     print("  3. Run 'fr-docs build' to generate your site")
     print(f"  4. Preview with 'cd {docs_dir}/site && python -m http.server 8000'")
-
 
 if __name__ == "__main__":
     main(sys.argv[1] if len(sys.argv) > 1 else "docs")
