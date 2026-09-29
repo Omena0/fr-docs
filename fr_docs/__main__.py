@@ -3,8 +3,8 @@
 Usage:
     python -m fr_docs build [--production] [--symlink] [--config CONFIG]
     fr-docs build [--production] [--symlink] [--config CONFIG]
-    python -m fr_docs init [DIR] [config]
-    fr-docs init [DIR] [config]
+    python -m fr_docs init [DIR] [config|fonts]
+    fr-docs init [DIR] [config|fonts]
 """
 
 import argparse
@@ -64,9 +64,9 @@ def main() -> None:
     init_parser.add_argument(
         "target",
         nargs="?",
-        choices=["config"],
+        choices=["config", "fonts"],
         default=None,
-        help="Initialize only the configuration.",
+        help="Initialize only the configuration or download fonts.",
     )
 
     args = parser.parse_args(sys.argv[1:])
@@ -87,12 +87,12 @@ def main() -> None:
         return
 
     if args.command == "init":
-        # `fr-docs init config` means "initialize config in ./docs".
-        if args.dir == "config" and args.target is None:
-            init_main("docs", True)
+        # If first arg is "config" or "fonts" with no explicit dir, use current directory
+        if args.dir in ("config", "fonts") and args.target is None:
+            init_main(".", args.dir)
             return
 
-        init_main(args.dir, args.target == "config")
+        init_main(args.dir, args.target)
         return
 
     # Default to build for backwards compatibility.

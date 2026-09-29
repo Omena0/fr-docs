@@ -2,11 +2,12 @@
 
 import json
 import platform
+import re
 import shutil
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
-from urllib.request import urlopen
 
 DEFAULT_CONFIG = {
     "$schema": "https://raw.githubusercontent.com/Omena0/fr-docs/main/config.schema.json",
@@ -37,7 +38,7 @@ DEFAULT_CONFIG = {
         "git_meta_filename": "git_meta.zst",
     },
     "versioning": {
-        "commit_message_pattern": "^\\s*([0-9]+[A-Za-z])\\s*[-:—–]\\s*(.+)",
+        "commit_message_pattern": r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)",
         "live_label": "Live",
     },
     "source_files": {
@@ -292,12 +293,34 @@ jobs:
         uses: Omena0/fr-docs@main
 """
 
+DEFAULT_CSS_URL = (
+    "https://fonts.googleapis.com/css2?"
+    "family=Inter:ital,opsz,wght@0,14..32,400..800"
+    "&family=JetBrains+Mono:wght@400..700&display=swap"
+)
 
-def download_file(url, dest_path) -> bool | None:
+FONT_FACE_RE = re.compile(
+    r"@font-face\s*\{\n"
+    r"\s*font-family:\s*['\"](?P<family>[^'\"]+)['\"]\s*;\n"
+    r"\s*font-style:\s*(?P<style>\w+)\s*;\n"
+    r"\s*font-weight:\s*(?P<weight>\d+)\s*;\n"
+    r"\s*font-display:\s*(?P<display>\w+)\s*;\n"
+    r"\s*src:\s*url\((?P<src>[^)]+)\)\s*format\(['\"](?P<format>[^'\"]+)['\"]\)\s*;\n"
+    r"\}"
+)
+
+METRICS = {
+    "Inter": "1984 494",
+    "JetBrains Mono": "1020 300",
+}
+
+
+def download_file(url, dest_path) -> bool:
     """Download a file from URL to dest_path."""
     try:
         print(f"  Downloading {url}...")
-        with urlopen(url, timeout=30) as response:
+        req = urllib.request.Request(url, headers={"User-Agent": "fr-docs/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as response:
             content = response.read()
         dest_path.write_bytes(content)
         print(f"  ✓ Saved to {dest_path}")
@@ -306,12 +329,96 @@ def download_file(url, dest_path) -> bool | None:
         print(f"  ✗ Failed to download {url}: {e}")
         return False
 
+
+def fetch_fonts_css(css_url: str) -> str:
+    """Fetch Google Fonts CSS text."""
+    req = urllib.request.Request(css_url, headers={"User-Agent": "fr-docs/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return resp.read().decode("utf-8")
+
+
+def download_font(url: str, dest: Path) -> bool:
+    """Download a single font file."""
+    if dest.exists() and dest.stat().st_size > 0:
+        return True
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "fr-docs/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = resp.read()
+        if len(data) < 1000:
+            return False
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ! failed to download {url}: {exc}", file=sys.stderr)
+        return False
+
+
+def run_fetch_fonts(docs_dir: Path, css_url: str = DEFAULT_CSS_URL) -> int:
+    """Download Google Fonts and generate local fonts.css."""
+    out_dir = docs_dir / "fonts"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Fetching Google Fonts CSS from {css_url}")
+    css = fetch_fonts_css(css_url)
+
+    faces = FONT_FACE_RE.findall(css)
+    if not faces:
+        print("ERROR: no @font-face blocks found in CSS", file=sys.stderr)
+        return 1
+
+    print(f"Found {len(faces)} font-face rules")
+
+    local_rules = []
+    for family, style, weight, _display, src_url, fmt in faces:
+        src_url = src_url.strip().strip("'\"")
+        fname = Path(src_url.split("?")[0]).name
+        if not fname:
+            continue
+        dest = out_dir / fname
+        print(f"  {family} {weight} {style} -> {fname}")
+        if not download_font(src_url, dest):
+            print(f"  ! skipping {family} {weight} {style} (download failed)")
+            continue
+        if metrics := METRICS.get(family, ""):
+            local_rules.append(
+                f"""@font-face {{
+  font-family: '{family}';
+  font-style: {style};
+  font-weight: {weight};
+  font-display: swap;
+  src: url('fonts/{fname}') format('{fmt}');
+  font-ascent-descent: {metrics};
+}}"""
+            )
+        else:
+            local_rules.append(
+                f"""@font-face {{
+  font-family: '{family}';
+  font-style: {style};
+  font-weight: {weight};
+  font-display: swap;
+  src: url('fonts/{fname}') format('{fmt}');
+}}"""
+            )
+
+    if not local_rules:
+        print("ERROR: no fonts were downloaded", file=sys.stderr)
+        return 1
+
+    fonts_css = "\n".join(local_rules) + "\n"
+    css_out = docs_dir / "fonts.css"
+    css_out.write_text(fonts_css, encoding="utf-8")
+    print(f"\nWrote {len(local_rules)} font-face rules to {css_out}")
+    return 0
+
+
 def create_uv_venv(docs_dir) -> None:
     """Create a uv virtual environment on Linux if uv is installed."""
     if platform.system() != "Linux":
         return
 
-    # Check if uv is available
     if not shutil.which("uv"):
         return
 
@@ -336,6 +443,7 @@ def create_uv_venv(docs_dir) -> None:
     except Exception as e:  # noqa: BLE001
         print(f"  ✗ Failed to create virtual environment: {e}")
 
+
 def create_github_workflow(docs_dir) -> None:
     """Create .github/workflows/pages.yml for GitHub Pages deployment."""
     workflow_dir = docs_dir.parent / ".github" / "workflows"
@@ -352,9 +460,25 @@ def create_github_workflow(docs_dir) -> None:
     except Exception as e:  # noqa: BLE001
         print(f"  ✗ Failed to create GitHub workflow: {e}")
 
-def create_default_files(docs_dir, project_name) -> None:
-    """Create default markdown files in src directory."""
+
+def src_dir_has_content(src_dir: Path) -> bool:
+    """Check if src directory has any files or folders."""
+    if not src_dir.exists():
+        return False
+    try:
+        return any(src_dir.iterdir())
+    except OSError:
+        return False
+
+
+def create_default_files(docs_dir: Path, project_name: str) -> None:
+    """Create default markdown files in src directory, but only if src is empty."""
     src_dir = docs_dir / "src"
+
+    if src_dir_has_content(src_dir):
+        print(f"  ⊘ {src_dir} already has content, skipping default markdown files")
+        return
+
     src_dir.mkdir(parents=True, exist_ok=True)
 
     files = {
@@ -369,9 +493,27 @@ def create_default_files(docs_dir, project_name) -> None:
         filepath.write_text(content, encoding="utf-8")
         print(f"  ✓ Created {filepath}")
 
-def main(docs_dir_str="docs", config_only=False) -> None:
-    """Initialize a new documentation project."""
-    docs_dir = Path(docs_dir_str).resolve()
+
+def create_config_only(docs_dir: Path) -> None:
+    """Create only config.json in the specified directory."""
+    docs_dir = docs_dir.resolve()
+    docs_dir.mkdir(parents=True, exist_ok=True)
+
+    config_path = docs_dir / "config.json"
+    if config_path.exists():
+        print(f"  ⊘ {config_path} already exists, not overwriting")
+        return
+
+    config = DEFAULT_CONFIG.copy()
+    config["project_name"] = docs_dir.name.replace("-", " ").replace("_", " ").title()
+    with config_path.open("w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+    print(f"  ✓ Created {config_path}")
+
+
+def create_full_init(docs_dir: Path) -> None:
+    """Create a full documentation project with config, markdown, assets, and workflow."""
+    docs_dir = docs_dir.resolve()
 
     print(f"📁 Initializing fr-docs project in {docs_dir}")
 
@@ -387,11 +529,9 @@ def main(docs_dir_str="docs", config_only=False) -> None:
         json.dump(config, f, indent=2)
     print(f"  ✓ Created {config_path}")
 
-    if config_only:
-        return
-
-    # Create default markdown files
-    create_default_files(docs_dir, config["project_name"])
+    # Create default markdown files (only if src is empty)
+    project_name = str(config["project_name"])
+    create_default_files(docs_dir, project_name)
 
     # Download static assets
     print("📥 Downloading static assets...")
@@ -416,5 +556,35 @@ def main(docs_dir_str="docs", config_only=False) -> None:
     print("  3. Run 'fr-docs build' to generate your site")
     print(f"  4. Preview with 'cd {docs_dir}/site && python -m http.server 8000'")
 
+
+def main(docs_dir_str="docs", target=None) -> None:
+    """Initialize a new documentation project.
+
+    Args:
+        docs_dir_str: Directory to initialize (default: "docs")
+        target: One of None (full init), "config" (config only), "fonts" (download fonts)
+    """
+    docs_dir = Path(docs_dir_str).resolve()
+
+    if target == "config":
+        print(f"📁 Creating config.json in {docs_dir}")
+        create_config_only(docs_dir)
+        return
+
+    if target == "fonts":
+        print(f"📁 Downloading fonts in {docs_dir}")
+        sys.exit(run_fetch_fonts(docs_dir))
+
+    # Full init
+    create_full_init(docs_dir)
+
+
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "docs")
+    # Support legacy: fr-docs init [dir] [config]
+    # New: fr-docs init [dir] [config|fonts]
+    if len(sys.argv) > 2 and sys.argv[2] in ("config", "fonts"):
+        main(sys.argv[1], sys.argv[2])
+    elif len(sys.argv) > 1 and sys.argv[1] in ("config", "fonts"):
+        main("docs", sys.argv[1])
+    else:
+        main(sys.argv[1] if len(sys.argv) > 1 else "docs")

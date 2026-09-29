@@ -50,7 +50,7 @@ Repository = "https://github.com/Omena0/fr-docs"
 Issues = "https://github.com/Omena0/fr-docs/issues"
 
 [project.scripts]
-fr-docs = "fr_docs.build:main"
+fr-docs = "fr_docs.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["fr_docs*"]
