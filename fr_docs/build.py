@@ -646,6 +646,3 @@ def get_all_slugs(config):
 
     return slugs
 
-
-if __name__ == "__main__":
-    main()
