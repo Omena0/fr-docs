@@ -21,4 +21,15 @@ def output_href(path, config):
 
 
 def output_site_prefix(config: dict) -> str:
-    return normalized_site_prefix(config) if config.get("production", False) else ""
+    return normalized_site_prefix(config) if config.get("production", False) else "/"
+
+
+def output_asset_href(path, config):
+    """Return a root-relative href for a static asset.
+
+    Static assets (CSS, JS, favicon, fonts) must resolve from any page
+    depth, so they always use a root-relative path (e.g. ``/style.css``).
+    """
+    clean = str(path or "").lstrip("/")
+    prefix = normalized_site_prefix(config)
+    return prefix + clean if prefix else "/" + clean
