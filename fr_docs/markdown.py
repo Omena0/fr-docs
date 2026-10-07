@@ -12,6 +12,7 @@ from markdown.extensions.tables import TableExtension
 
 from .slug import (
     normalize_slug,
+    relative_slug_path,
     slug_output_name,
 )
 from .syntax import URL_ATTR_RE
@@ -91,7 +92,12 @@ def convert_markdown(text):
 
 
 def resolve_md_target(md_target, current_slug, slug_page_keys):
-    """Resolve a markdown link target to an output HTML filename."""
+    """Resolve a markdown link target to a page-relative output HTML filename.
+
+    Returns a path relative to the current page (e.g. ``../index.html`` from
+    ``core/entity.html`` to ``index.html``) so links work at any depth in the
+    directory tree.
+    """
     raw = str(md_target or "").strip()
     if not raw:
         return raw
@@ -116,9 +122,9 @@ def resolve_md_target(md_target, current_slug, slug_page_keys):
 
     for candidate in candidates:
         if candidate in slug_page_keys:
-            return slug_output_name(candidate)
+            return relative_slug_path(current_slug, candidate)
 
-    return slug_output_name(normalize_slug(raw))
+    return relative_slug_path(current_slug, normalize_slug(raw))
 
 
 def rewrite_md_links(html_text, current_slug, slug_page_keys):
@@ -139,7 +145,7 @@ def rewrite_md_links(html_text, current_slug, slug_page_keys):
     )
 
 
-def auto_link_filenames(html_text, slug_page_keys):
+def auto_link_filenames(html_text, slug_page_keys, current_slug=""):
     """Auto-link bare filename references like `config.json` to their .md pages.
 
     Only processes filenames INSIDE inline code tags (<code>...</code>).
@@ -148,12 +154,12 @@ def auto_link_filenames(html_text, slug_page_keys):
     if not slug_page_keys:
         return html_text
 
-    # Build a map of filename (without .md) -> output HTML file
+    # Build a map of filename (without .md) -> page-relative output HTML file
     filename_map = {}
     for slug in slug_page_keys:
         filename = slug.rsplit("/", 1)[-1]
         if filename:
-            output = slug_output_name(slug)
+            output = relative_slug_path(current_slug, slug)
             filename_map[filename.lower()] = output
             filename_map[f"{filename}.md".lower()] = output
 

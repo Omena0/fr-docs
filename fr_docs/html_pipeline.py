@@ -35,7 +35,7 @@ from .markdown import (
     rewrite_md_links,
 )
 from .search import search_include_config
-from .slug import slug_output_name
+from .slug import relative_slug_path, slug_output_name
 from .syntax import (
     URL_ATTR_RE,
     format_custom_tags,
@@ -282,7 +282,7 @@ def _render_backlinks_and_related(body_md, body_html, slug, config, search_index
         and page_data.get("backlinks")
         and not no_backlinks
     ):
-        backlinks_html = _render_backlinks(page_data["backlinks"], search_index)
+        backlinks_html = _render_backlinks(page_data["backlinks"], search_index, slug)
         if has_backlinks_tag:
             body_html = body_html.replace("<p><backlinks></p>", backlinks_html)
             body_html = body_html.replace("<p><backlinks></p>\n", backlinks_html)
@@ -293,7 +293,7 @@ def _render_backlinks_and_related(body_md, body_html, slug, config, search_index
         and page_data.get("related")
         and not no_related
     ):
-        related_html = _render_related(page_data["related"], search_index)
+        related_html = _render_related(page_data["related"], search_index, slug)
         if has_related_tag:
             body_html = body_html.replace("<p><related></p>", related_html)
             body_html = body_html.replace("<p><related></p>\n", related_html)
@@ -332,7 +332,7 @@ def build_page(slug, config, slug_page_keys) -> None:
     body_html = rewrite_md_links(body_html, slug, slug_page_keys)
 
     if feature_enabled(config, "auto_link"):
-        body_html = auto_link_filenames(body_html, config.get("_slug_page_keys", {}))
+        body_html = auto_link_filenames(body_html, config.get("_slug_page_keys", {}), slug)
 
     code_refs = []
     if feature_enabled(config, "code_references"):
@@ -378,6 +378,7 @@ def build_page(slug, config, slug_page_keys) -> None:
 
     out_name = slug_output_name(slug, config)
     out_path = Path(config["_out_dir"], out_name)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(out_html, encoding="utf-8")
 
 
@@ -389,9 +390,11 @@ def _strip_site_prefix(out_dir, stripped_prefix, backed_up):
     prefix_pat = re.compile(
         rf'href=(["\']?){re.escape(stripped_prefix)}/([^"\'\s>]+)\1'
     )
-    for html_file in out_dir.glob("*.html"):
+    for html_file in out_dir.rglob("*.html"):
+        if html_file.name.startswith("."):
+            continue
         raw = html_file.read_text(encoding="utf-8")
-        backup = out_dir / f".critical_orig_{html_file.stem}.html"
+        backup = html_file.parent / f".critical_orig_{html_file.stem}.html"
         backup.write_text(raw, encoding="utf-8")
         backed_up.append(backup)
         rewritten = prefix_pat.sub(
@@ -436,7 +439,8 @@ def _run_critical_on_file(html_file, out_dir):
 def _restore_backups(out_dir, backed_up):
     """Restore original HTML for pages critical didn't inline, and clean up backups."""
     for backup in backed_up:
-        target = out_dir / f"{backup.stem.replace('.critical_orig_', '')}.html"
+        # Backup is stored alongside the original: <dir>/.critical_orig_<stem>.html
+        target = backup.parent / f"{backup.stem.replace('.critical_orig_', '')}.html"
         if target.exists() and backup.exists():
             target_content = target.read_text(encoding="utf-8")
             if "data-critical" not in target_content:
@@ -478,7 +482,9 @@ def optimize_all_pages(config) -> None:
 
     try:
         _strip_site_prefix(out_dir, stripped_prefix, backed_up)
-        for html_file in out_dir.glob("*.html"):
+        for html_file in out_dir.rglob("*.html"):
+            if html_file.name.startswith("."):
+                continue
             _run_critical_on_file(html_file, out_dir)
     finally:
         _restore_backups(out_dir, backed_up)
@@ -495,7 +501,9 @@ def minify_all_pages(config) -> None:
     if not out_dir.is_dir():
         return
 
-    for html_file in sorted(out_dir.glob("*.html")):
+    for html_file in sorted(out_dir.rglob("*.html")):
+        if html_file.name.startswith("."):
+            continue
         try:
             raw = html_file.read_text(encoding="utf-8")
             minified = minify_html(raw, config)
@@ -555,7 +563,7 @@ def add_internal_prefetch_links(html_text, config):
 logger = logging.getLogger(__name__)
 
 
-def _render_backlinks(backlinks, search_index) -> str:
+def _render_backlinks(backlinks, search_index, current_slug=""):
     """Render backlinks HTML."""
     if not backlinks:
         return ""
@@ -564,9 +572,9 @@ def _render_backlinks(backlinks, search_index) -> str:
         if page := next((p for p in search_index if p.get("slug") == bl_slug), None):
             url = page.get("url", f"{bl_slug}.html")
             title = page.get("title", bl_slug)
+            if not url.startswith("http"):
+                url = relative_slug_path(current_slug, bl_slug)
             items.append(f'<li><a href="{url}">{title}</a></li>')
-    if not items:
-        return ""
     return (
         f"<h2>Backlinks</h2>"
         f'<details class="backlinks-details">'
@@ -580,7 +588,7 @@ def _render_backlinks(backlinks, search_index) -> str:
     )
 
 
-def _render_related(related, search_index) -> str:
+def _render_related(related, search_index, current_slug=""):
     """Render related pages HTML."""
     if not related:
         return ""
@@ -589,6 +597,8 @@ def _render_related(related, search_index) -> str:
         if page := next((p for p in search_index if p.get("slug") == rel_slug), None):
             url = page.get("url", f"{rel_slug}.html")
             title = page.get("title", rel_slug)
+            if not url.startswith("http"):
+                url = relative_slug_path(current_slug, rel_slug)
             items.append(f'<li><a href="{url}">{title}</a></li>')
 
     if not items:

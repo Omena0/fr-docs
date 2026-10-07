@@ -626,12 +626,25 @@ def main(argv=None) -> None:
                 if prefix_dir.is_symlink() or prefix_dir.exists():
                     shutil.rmtree(prefix_dir, ignore_errors=True)
                 prefix_dir.mkdir(parents=True, exist_ok=True)
-                for f in sorted(Path(config["_out_dir"]).iterdir()):
-                    if f.is_file() and not f.name.startswith("."):
-                        (prefix_dir / f.name).symlink_to(f.resolve())
-                print(
-                    f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/"
-                )
+                symlinked = 0
+                for f in sorted(Path(config["_out_dir"]).rglob("*")):
+                    if not f.is_file() or f.name.startswith("."):
+                        continue
+                    # Skip files inside the prefix directory itself
+                    try:
+                        f.relative_to(prefix_dir)
+                        continue
+                    except ValueError:
+                        pass
+                    rel = f.relative_to(config["_out_dir"])
+                    link_path = prefix_dir / rel
+                    link_path.parent.mkdir(parents=True, exist_ok=True)
+                    if link_path.is_symlink() or link_path.exists():
+                        with contextlib.suppress(OSError):
+                            link_path.unlink()
+                    link_path.symlink_to(f.resolve())
+                    symlinked += 1
+                print(f"   ✓ Symlinked {symlinked} files into {prefix}/")
             except OSError as e:
                 print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
 

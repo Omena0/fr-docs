@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .config_accessors import feature_enabled
 from .frontmatter import parse_frontmatter
-from .slug import normalize_slug, slug_output_name, slug_page_key
+from .slug import normalize_slug, relative_slug_path, slug_output_name
 from .utils import output_href
 
 # Symbol extraction patterns for various languages
@@ -536,7 +536,7 @@ def build_search_index(slugs, config):
             title = meta.get("title", slug.capitalize())
             sections = _parse_search_sections(body_md)
 
-            page_key = slug_page_key(slug, config)
+            page_key = normalize_slug(slug)
             url = output_href(slug_output_name(slug, config), config)
             search_index.append(
                 {
