@@ -12,6 +12,7 @@ import sys
 
 from .build import main as build_main
 from .init import main as init_main
+from .update import main as update_main
 
 
 def main() -> None:
@@ -69,6 +70,16 @@ def main() -> None:
         help="Initialize only the configuration or download fonts.",
     )
 
+    # Update command
+    update_parser = subparsers.add_parser(
+        "update",
+        help="Update fr-docs resources (script.js, style.css, fonts) from the repo.",
+    )
+    update_parser.add_argument(
+        "--config",
+        help="Path to the configuration JSON file.",
+    )
+
     args = parser.parse_args(sys.argv[1:])
 
     if args.command == "build":
@@ -93,6 +104,13 @@ def main() -> None:
             return
 
         init_main(args.dir, args.target)
+        return
+
+    if args.command == "update":
+        update_argv: list[str] = []
+        if args.config:
+            update_argv.extend(["--config", args.config])
+        update_main(update_argv)
         return
 
     # Default to build for backwards compatibility.
