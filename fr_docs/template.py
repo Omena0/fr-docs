@@ -3,7 +3,7 @@
 import re
 
 from .config_accessors import feature_enabled
-from .slug import slug_basename, slug_output_name
+from .slug import relative_slug_path
 
 TEMPLATE = """\
 <!DOCTYPE html>
@@ -141,7 +141,7 @@ def build_sidebar_html(current_slug, sidebar_config, tagged_sections=None, confi
         )
         for slug, label in pages:
             active = ' class="active"' if slug == current_slug else ""
-            href = slug_output_name(slug_basename(slug))
+            href = relative_slug_path(current_slug, slug)
             display = label
             parts.append(f'    <li><a href="{href}"{active}>{display}</a></li>')
 

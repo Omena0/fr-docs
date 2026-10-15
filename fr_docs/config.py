@@ -28,6 +28,7 @@ DEFAULT_CONFIG = {
         "zstd_level": 22,
         "search_index_filename": "search_index.zst",
         "git_meta_filename": "git_meta.zst",
+        "auto_update": True,
     },
     "versioning": {
         "commit_message_pattern": r"^\s*([0-9]+[A-Za-z])\s*[-:—–]\s*(.+)",

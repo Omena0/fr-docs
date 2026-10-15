@@ -38,7 +38,13 @@ def _parse_commit_log(log_out):
 
 
 def _build_pages_by_commit(out, slugs):
-    """Build pages_by_commit mapping from git log output."""
+    """Build pages_by_commit mapping from git log output.
+
+    Each slug in ``slugs`` is a normalized slug like ``core/entity``. The
+    git log ``--name-only`` output lists file paths like
+    ``docs/src/core/entity.md``; we strip the configured source prefix
+    and ``.md`` suffix to recover the slug.
+    """
     pages_by_commit = {}
     current_commit = None
     for line in out.splitlines():
@@ -49,9 +55,26 @@ def _build_pages_by_commit(out, slugs):
         if re.fullmatch(r"[0-9a-f]{7,40}", line):
             current_commit = line
         elif current_commit:
-            slug = Path(line).stem
-            if slug in slugs:
-                pages_by_commit.setdefault(current_commit, []).append(slug)
+            # Recover the slug from the file path: strip dir prefix and .md
+            slug = line
+            if slug.endswith(".md"):
+                slug = slug[:-3]
+            # Try to match against known slugs (handles prefix variations)
+            matched = None
+            for s in slugs:
+                src_path = s + ".md"
+                if line.endswith(src_path) or line.endswith(f"/{src_path}") or line == src_path:
+                    matched = s
+                    break
+            if matched is None:
+                # Fall back to basename matching for flat layouts
+                base = Path(line).stem
+                for s in slugs:
+                    if s.rsplit("/", 1)[-1] == base:
+                        matched = s
+                        break
+            if matched is not None:
+                pages_by_commit.setdefault(current_commit, []).append(matched)
     return pages_by_commit
 
 
@@ -63,9 +86,8 @@ def _build_slug_last_commits(slugs, config, repo_root):
         out = subprocess.check_output(
             ["git", "log", "-1", "--pretty=format:%H", "--", src],
             cwd=repo_root,
-            text=True,
             stderr=subprocess.DEVNULL,
-        ).strip()
+        ).decode("utf-8", errors="replace").strip()
 
         if out and re.fullmatch(r"[0-9a-f]{7,40}", out):
             slug_last_commit[slug] = out
@@ -91,8 +113,8 @@ def collect_git_metadata(config):
     remote_url = subprocess.check_output(
         ["git", "remote", "get-url", "origin"],
         cwd=repo_root,
-        text=True,
-    ).strip()
+        stderr=subprocess.DEVNULL,
+    ).decode("utf-8", errors="replace").strip()
 
     if m := re.search(r"github.com[:/](.+?)(?:\.git)?$", remote_url):
         git_meta["repo"] = m[1]
@@ -100,8 +122,8 @@ def collect_git_metadata(config):
     log_out = subprocess.check_output(
         ["git", "log", "--pretty=format:%H\x01%s", "--reverse"],
         cwd=repo_root,
-        text=True,
-    )
+        stderr=subprocess.DEVNULL,
+    ).decode("utf-8", errors="replace")
 
     commits, versions = _parse_commit_log(log_out)
     git_meta["commits"] = commits
@@ -129,9 +151,8 @@ def collect_git_metadata(config):
         ]
         + [src_map_path(config).replace("{slug}", s) for s in slugs],
         cwd=repo_root,
-        text=True,
         stderr=subprocess.DEVNULL,
-    )
+    ).decode("utf-8", errors="replace")
 
     git_meta["pages_by_commit"] = _build_pages_by_commit(out, slugs)
     git_meta["slug_last_commit"] = _build_slug_last_commits(slugs, config, repo_root)

@@ -30,7 +30,8 @@
         "optimize_html": { "type": "boolean" },
         "zstd_level": { "type": "integer" },
         "search_index_filename": { "type": "string" },
-        "git_meta_filename": { "type": "string" }
+        "git_meta_filename": { "type": "string" },
+        "auto_update": { "type": "boolean" }
       },
       "additionalProperties": true
     },

@@ -1,6 +1,7 @@
 # Fr-docs
 
-Fr-docs is a generic, configurable documentation builder for Python projects. It converts Markdown source files into a searchable, optimized static HTML site with zero-config setup.
+Fr-docs is a generic, configurable documentation builder.
+It converts Markdown source files into a searchable, optimized static HTML site with zero-config setup.
 
 ## Quick Links
 

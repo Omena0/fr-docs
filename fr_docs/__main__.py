@@ -3,8 +3,8 @@
 Usage:
     python -m fr_docs build [--production] [--symlink] [--config CONFIG]
     fr-docs build [--production] [--symlink] [--config CONFIG]
-    python -m fr_docs init [DIR] [config]
-    fr-docs init [DIR] [config]
+    python -m fr_docs init [DIR] [config|fonts]
+    fr-docs init [DIR] [config|fonts]
 """
 
 import argparse
@@ -12,6 +12,7 @@ import sys
 
 from .build import main as build_main
 from .init import main as init_main
+from .update import main as update_main
 
 
 def main() -> None:
@@ -64,9 +65,19 @@ def main() -> None:
     init_parser.add_argument(
         "target",
         nargs="?",
-        choices=["config"],
+        choices=["config", "fonts"],
         default=None,
-        help="Initialize only the configuration.",
+        help="Initialize only the configuration or download fonts.",
+    )
+
+    # Update command
+    update_parser = subparsers.add_parser(
+        "update",
+        help="Update fr-docs resources (script.js, style.css, fonts) from the repo.",
+    )
+    update_parser.add_argument(
+        "--config",
+        help="Path to the configuration JSON file.",
     )
 
     args = parser.parse_args(sys.argv[1:])
@@ -87,12 +98,19 @@ def main() -> None:
         return
 
     if args.command == "init":
-        # `fr-docs init config` means "initialize config in ./docs".
-        if args.dir == "config" and args.target is None:
-            init_main("docs", True)
+        # If first arg is "config" or "fonts" with no explicit dir, use current directory
+        if args.dir in ("config", "fonts") and args.target is None:
+            init_main(".", args.dir)
             return
 
-        init_main(args.dir, args.target == "config")
+        init_main(args.dir, args.target)
+        return
+
+    if args.command == "update":
+        update_argv: list[str] = []
+        if args.config:
+            update_argv.extend(["--config", args.config])
+        update_main(update_argv)
         return
 
     # Default to build for backwards compatibility.

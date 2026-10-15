@@ -39,12 +39,21 @@ runs:
         python-version: ${{ inputs.python-version }}
         cache: 'pip'
         cache-dependency-path: ${{ inputs.requirements-path }}
+    - name: Check for npm lockfile
+      id: lockfile
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.lockfile-path }}" ] && [ "${{ inputs.lockfile-path }}" != "none" ] && [ -f "${{ inputs.lockfile-path }}" ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: 'npm'
-        cache-dependency-path: ${{ inputs.lockfile-path }}
+        cache: ${{ steps.lockfile.outputs.exists == 'true' && 'npm' || '' }}
+        cache-dependency-path: ${{ steps.lockfile.outputs.exists == 'true' && inputs.lockfile-path || '' }}
     - name: Install Node.js tools
       shell: bash
       env:
@@ -63,11 +72,11 @@ runs:
         npm install --no-audit --no-fund --no-save "${tools[@]}"
     - name: Install fr-docs
       shell: bash
-      run: pip install -e .
+      run: pip install fr-docs
     - name: Build docs site
       shell: bash
       working-directory: ${{ inputs.docs-dir }}
-      run: fr-docs build --production
+      run: python -m fr_docs build --production
     - name: Configure GitHub Pages
       uses: actions/configure-pages@v5
     - name: Upload Pages artifact

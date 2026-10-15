@@ -68,6 +68,126 @@ def _best_zstd_level(raw: bytes, configured: int) -> int:
     return best_level
 
 
+def _script_version_hash(script_path):
+    """Return (version, sha1_hex) for a script.js file.
+
+    Looks for a ``// version: <n>`` comment on the first line. If no version
+    is found, returns (0, sha1_of_content).
+    """
+    try:
+        text = script_path.read_text(encoding="utf-8")
+    except OSError:
+        return 0, ""
+    first_line = text.split("\n", 1)[0].strip()
+    m = re.match(r"//\s*version:\s*(\d+)", first_line)
+    version = int(m.group(1)) if m else 0
+    return version, xxhash.xxh3_128_hexdigest(text.encode("utf-8"))
+
+
+def _git_script_versions(repo_root, script_rel_path):
+    """Return a list of (version, sha1) for every historical version of the
+    script found in the git tree.
+
+    The script's own ``// version: <n>`` comment is the source of truth;
+    if a blob in git history has no version comment, its sha1 is still
+    recorded so we can detect whether the local file matches a known
+    historical version.
+    """
+    versions = []
+    seen_blobs = set()
+    try:
+        out = subprocess.check_output(
+            ["git", "log", "--all", "--pretty=format:%H", "--", script_rel_path],
+            cwd=repo_root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (subprocess.CalledProcessError, OSError):
+        return versions
+
+    for commit in out.splitlines():
+        commit = commit.strip()
+        if not commit:
+            continue
+        try:
+            blob = subprocess.check_output(
+                ["git", "rev-parse", f"{commit}:{script_rel_path}"],
+                cwd=repo_root,
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+        except (subprocess.CalledProcessError, OSError):
+            continue
+        if not blob or blob in seen_blobs:
+            continue
+        seen_blobs.add(blob)
+        try:
+            content = subprocess.check_output(
+                ["git", "show", blob],
+                cwd=repo_root,
+                stderr=subprocess.DEVNULL,
+            ).decode("utf-8", errors="replace")
+        except (subprocess.CalledProcessError, OSError):
+            continue
+        first_line = content.split("\n", 1)[0].strip()
+        m = re.match(r"//\s*version:\s*(\d+)", first_line)
+        ver = int(m.group(1)) if m else 0
+        h = xxhash.xxh3_128_hexdigest(content.encode("utf-8"))
+        versions.append((ver, h))
+
+    return versions
+
+
+def _resolve_script_version(repo_root, script_rel_path, local_path):
+    """Resolve the version and content to use for script.js.
+
+    Returns (version, content_text) where content_text is the script to write
+    to the output directory. If the local script has no version comment but
+    its hash matches a known historical version, the historical version
+    number is used. If the remote (repo HEAD) has a higher version, the
+    remote content is used instead.
+    """
+    local_version, local_hash = _script_version_hash(local_path)
+    remote_version, remote_hash = _script_version_hash(
+        Path(repo_root, script_rel_path)
+    )
+
+    # If local has no version but matches a known historical blob, adopt
+    # that version number so future comparisons work.
+    if local_version == 0:
+        hist = _git_script_versions(repo_root, script_rel_path)
+        for ver, h in hist:
+            if h == local_hash and ver > 0:
+                local_version = ver
+                break
+
+    # If remote is newer, use remote content.
+    if remote_version > local_version:
+        try:
+            content = Path(repo_root, script_rel_path).read_text(encoding="utf-8")
+            return remote_version, content
+        except OSError:
+            pass
+
+    # Otherwise use local content.
+    try:
+        content = local_path.read_text(encoding="utf-8")
+    except OSError:
+        content = ""
+    return local_version, content
+
+
+def _write_script_js(out_path, version, content):
+    """Write script.js with a ``// version: <n>`` first line."""
+    if not content:
+        return
+    first_line = content.split("\n", 1)[0].strip()
+    if re.match(r"//\s*version:\s*\d+", first_line):
+        out_path.write_text(content, encoding="utf-8")
+    else:
+        out_path.write_text(f"// version: {version}\n{content}", encoding="utf-8")
+
+
 def _minify_static_asset(config, src: Path, dst: Path, name: str) -> None:
     """Minify a static asset in-place (JS via terser, CSS via html-minifier).
 
@@ -380,6 +500,12 @@ def main(argv=None) -> None:
         print(f"   Site prefix: {normalized_site_prefix(config)}")
     print()
 
+    # Auto-update resources if enabled
+    if config.get("build", {}).get("auto_update", True):
+        from .update import update_resources
+        update_resources(config)
+        print()
+
     # Collect source files for code references
     search_includes = search_include_config(config)
     if feature_enabled(config, "code_references") or (
@@ -402,7 +528,7 @@ def main(argv=None) -> None:
         "symbol_index.json",
     ):
         Path(config["_out_dir"], legacy_name).unlink(missing_ok=True)
-    for name in ("favicon.svg", "fonts.css", "script.js", "style.css"):
+    for name in ("favicon.svg", "fonts.css", "style.css"):
         src = docs_path / name
         dst = Path(config["_out_dir"]) / name
 
@@ -415,6 +541,26 @@ def main(argv=None) -> None:
             print(f"File not found: {Path.cwd()}, {src}->{dst}")
         except OSError as e:
             print(f"OSError: {e}")
+
+    # script.js: check version comment and update from repo if needed
+    repo_root = Path(config["_docs_dir"]).resolve().parent
+    script_rel = str(Path(config["_docs_dir"]).resolve().relative_to(repo_root)) + "/script.js"
+    local_script = docs_path / "script.js"
+    out_script = Path(config["_out_dir"]) / "script.js"
+
+    if local_script.exists():
+        version, content = _resolve_script_version(repo_root, script_rel, local_script)
+        if config.get("production", False):
+            # Minify the resolved content
+            _minify_static_asset(config, local_script, out_script, "script.js")
+            # Re-write version header on minified output
+            minified = out_script.read_text(encoding="utf-8")
+            first_line = minified.split("\n", 1)[0].strip()
+            if not re.match(r"//\s*version:\s*\d+", first_line):
+                out_script.write_text(f"// version: {version}\n{minified}", encoding="utf-8")
+        else:
+            _write_script_js(out_script, version, content)
+        print(f"   script.js: version {version}")
 
     # Copy locally-fetched fonts (if present) so the site doesn't need
     # to reach out to fonts.gstatic.com. fonts.css is minified along
@@ -626,12 +772,25 @@ def main(argv=None) -> None:
                 if prefix_dir.is_symlink() or prefix_dir.exists():
                     shutil.rmtree(prefix_dir, ignore_errors=True)
                 prefix_dir.mkdir(parents=True, exist_ok=True)
-                for f in sorted(Path(config["_out_dir"]).iterdir()):
-                    if f.is_file() and not f.name.startswith("."):
-                        (prefix_dir / f.name).symlink_to(f.resolve())
-                print(
-                    f"   ✓ Symlinked {len(list(prefix_dir.iterdir()))} files into {prefix}/"
-                )
+                symlinked = 0
+                for f in sorted(Path(config["_out_dir"]).rglob("*")):
+                    if not f.is_file() or f.name.startswith("."):
+                        continue
+                    # Skip files inside the prefix directory itself
+                    try:
+                        f.relative_to(prefix_dir)
+                        continue
+                    except ValueError:
+                        pass
+                    rel = f.relative_to(config["_out_dir"])
+                    link_path = prefix_dir / rel
+                    link_path.parent.mkdir(parents=True, exist_ok=True)
+                    if link_path.is_symlink() or link_path.exists():
+                        with contextlib.suppress(OSError):
+                            link_path.unlink()
+                    link_path.symlink_to(f.resolve())
+                    symlinked += 1
+                print(f"   ✓ Symlinked {symlinked} files into {prefix}/")
             except OSError as e:
                 print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
 
@@ -646,6 +805,3 @@ def get_all_slugs(config):
 
     return slugs
 
-
-if __name__ == "__main__":
-    main()
