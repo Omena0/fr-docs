@@ -72,11 +72,11 @@ runs:
         npm install --no-audit --no-fund --no-save "${tools[@]}"
     - name: Install fr-docs
       shell: bash
-      run: pip install -e .
+      run: pip install fr-docs
     - name: Build docs site
       shell: bash
       working-directory: ${{ inputs.docs-dir }}
-      run: fr-docs build --production
+      run: python -m fr_docs build --production
     - name: Configure GitHub Pages
       uses: actions/configure-pages@v5
     - name: Upload Pages artifact
