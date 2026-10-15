@@ -1,3 +1,4 @@
+// version: 1
 document.addEventListener('DOMContentLoaded', () => {
   const STORAGE_KEY = 'pjb-sidebar-state';
   const sitePrefixRaw = (document.documentElement.getAttribute('data-site-prefix') || '').trim();
@@ -49,28 +50,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentRelative = sitePrefix && currentPath.startsWith(sitePrefix)
     ? currentPath.slice(sitePrefix.length).replace(/^\//, '') || 'index.html'
     : currentPath.replace(/^\//, '') || 'index.html';
-  // Resolve a relative href (e.g. '../index.html' or 'core/entity.html') to a
-  // site-root-relative path so we can compare with currentRelative.
-  function resolveHrefToRoot(href) {
-    if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) {
-      return null;
+// Resolve a relative href (e.g. '../index.html' or 'core/entity.html') to a
+    // site-root-relative path so we can compare with currentRelative.
+    function resolveHrefToRoot(href) {
+      if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) {
+        return null;
+      }
+      // Strip query/hash
+      const clean = href.split('?')[0].split('#')[0];
+      if (!clean) return null;
+      // Resolve relative to current page's directory
+      const currentDir = currentRelative.includes('/')
+        ? currentRelative.slice(0, currentRelative.lastIndexOf('/') + 1)
+        : '';
+      const parts = (currentDir + clean).split('/');
+      const resolved = [];
+      for (const p of parts) {
+        if (p === '' || p === '.') continue;
+        if (p === '..') resolved.pop();
+        else resolved.push(p);
+      }
+      return resolved.join('/') || 'index.html';
     }
-    // Strip query/hash
-    const clean = href.split('?')[0].split('#')[0];
-    if (!clean) return null;
-    // Resolve relative to current page's directory
-    const currentDir = currentRelative.includes('/')
-      ? currentRelative.rsplit('/', 1)[0] + '/'
-      : '';
-    const parts = (currentDir + clean).split('/');
-    const resolved = [];
-    for (const p of parts) {
-      if (p === '' || p === '.') continue;
-      if (p === '..') resolved.pop();
-      else resolved.push(p);
-    }
-    return resolved.join('/') || 'index.html';
-  }
   document.querySelectorAll('.sidebar-links a').forEach(a => {
     const href = a.getAttribute('href');
     if (href && !href.startsWith('#')) {
@@ -1545,11 +1546,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function hidePreviewTooltip() {
     if (previewHideTimeout) clearTimeout(previewHideTimeout);
-    previewHideTimeout = setTimeout(() => {
-      if (previewTooltip && !previewTooltip.matches(':hover')) {
-        previewTooltip.style.opacity = '0';
-      }
-    }, 200);
+    previewHideTimeout = null;
+    if (previewTooltip) {
+      previewTooltip.style.opacity = '0';
+      // Remove from DOM after fade completes so it doesn't block
+      // pointer events on the page below.
+      const el = previewTooltip;
+      setTimeout(() => {
+        if (el.parentNode && el.style.opacity === '0') {
+          el.parentNode.removeChild(el);
+          previewTooltip = null;
+        }
+      }, 200);
+    }
   }
 
   function initLinkPreviews() {
@@ -1607,6 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
       link.addEventListener('mouseenter', async (e) => {
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
+        if (hoverTimeout) clearTimeout(hoverTimeout);
         hoverTimeout = setTimeout(async () => {
           if (isCodeRef) {
             const refId = link.dataset.coderefId;
@@ -1664,6 +1674,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }, 300); // 300ms delay before showing preview
+      });
+
+      // Hide the tooltip when the link loses hover (with a small delay to
+      // allow moving the mouse into the tooltip itself).
+      link.addEventListener('mouseleave', () => {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }
+        // Small delay so the user can move the mouse into the tooltip
+        // without it disappearing.
+        setTimeout(() => {
+          if (previewTooltip && previewTooltip.style.opacity === '1') {
+            hidePreviewTooltip();
+          }
+        }, 150);
       });
     });
   }
