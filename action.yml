@@ -1,7 +1,6 @@
 name: Build and Deploy fr-docs Site
 description: >-
   Build a documentation site using fr-docs and deploy it to GitHub Pages.
-  Caches Python (pip) and Node.js (npm) dependencies.
 inputs:
   python-version:
     description: 'Python version for fr-docs'
@@ -11,17 +10,6 @@ inputs:
     description: 'Node.js version for npm tooling'
     required: false
     default: '22'
-  requirements-path:
-    description: 'Path to pip cache dependency file'
-    required: false
-    default: 'pyproject.toml'
-  lockfile-path:
-    description: 'Path to npm lockfile'
-    required: false
-    default: 'package-lock.json'
-  node-tools:
-      description: 'Space-separated npm packages to install for the build'
-      default: 'html-minifier-next@8.5.3 critical@9.0.0 terser@5.24.0'
   docs-dir:
     description: 'Directory containing fr-docs config.json and src/'
     required: false
@@ -33,43 +21,45 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Prepare dependency manifests
+      shell: bash
+      run: |
+        mkdir -p .fr-docs
+        cat > .fr-docs/requirements.txt <<'EOF'
+        fastpylight>=0.1.18
+        markdown
+        xxhash>=4.0.1
+        zstandard
+        EOF
+        cat > .fr-docs/package.json <<'EOF'
+        {
+          "name": "fr-docs-build",
+          "private": true,
+          "devDependencies": {
+            "html-minifier-next": "8.5.3",
+            "critical": "9.0.0",
+            "terser": "5.24.0"
+          }
+        }
+        EOF
     - name: Setup Python
       uses: actions/setup-python@v7
       with:
         python-version: ${{ inputs.python-version }}
         cache: 'pip'
-        cache-dependency-path: ${{ inputs.requirements-path }}
-    - name: Check for npm lockfile
-      id: lockfile
+        cache-dependency-path: '.fr-docs/requirements.txt'
+    - name: Install Python dependencies
       shell: bash
-      run: |
-        if [ -n "${{ inputs.lockfile-path }}" ] && [ "${{ inputs.lockfile-path }}" != "none" ] && [ -f "${{ inputs.lockfile-path }}" ]; then
-          echo "exists=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-        fi
+      run: pip install -r .fr-docs/requirements.txt
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: ${{ steps.lockfile.outputs.exists == 'true' && 'npm' || '' }}
-        cache-dependency-path: ${{ steps.lockfile.outputs.exists == 'true' && inputs.lockfile-path || '' }}
+        cache: 'npm'
+        cache-dependency-path: '.fr-docs/package.json'
     - name: Install Node.js tools
       shell: bash
-      env:
-        NODE_TOOLS: ${{ inputs.node-tools }}
-      run: |
-        set -euo pipefail
-        read -r -a tools <<< "$NODE_TOOLS"
-
-        for tool in "${tools[@]}"; do
-          if [[ ! "$tool" =~ ^[A-Za-z0-9@._/\-]+$ ]]; then
-            echo "Invalid package specifier: $tool" >&2
-            exit 1
-          fi
-        done
-
-        npm install --no-audit --no-fund --no-save "${tools[@]}"
+      run: npm install --no-audit --no-fund
     - name: Install fr-docs
       shell: bash
       run: pip install fr-docs
@@ -86,6 +76,3 @@ runs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
-branding:
-  icon: 'cloud'
-  color: 'blue'
