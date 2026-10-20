@@ -148,7 +148,7 @@ def _resolve_script_version(repo_root, script_rel_path, local_path):
     remote content is used instead.
     """
     local_version, local_hash = _script_version_hash(local_path)
-    remote_version, remote_hash = _script_version_hash(
+    remote_version, _remote_hash = _script_version_hash(
         Path(repo_root, script_rel_path)
     )
 

@@ -57,13 +57,12 @@ def _build_pages_by_commit(out, slugs):
         elif current_commit:
             # Recover the slug from the file path: strip dir prefix and .md
             slug = line
-            if slug.endswith(".md"):
-                slug = slug[:-3]
+            slug = slug.removesuffix(".md")
             # Try to match against known slugs (handles prefix variations)
             matched = None
             for s in slugs:
-                src_path = s + ".md"
-                if line.endswith(src_path) or line.endswith(f"/{src_path}") or line == src_path:
+                src_path = f"{s}.md"
+                if line.endswith((src_path, f"/{src_path}")) or line == src_path:
                     matched = s
                     break
             if matched is None:

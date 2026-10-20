@@ -43,7 +43,7 @@ from .syntax import (
     process_blockquotes,
 )
 from .template import TEMPLATE, build_toc_sidebar
-from .utils import normalized_site_prefix, output_href, output_asset_href
+from .utils import normalized_site_prefix, output_asset_href, output_href
 
 
 def _determine_tagged_sections(config):

@@ -1,111 +1,68 @@
-"""Update fr-docs resources (script.js, style.css, fonts) from the repo."""
+"""Update fr-docs resources (script.js, style.css, fonts) from upstream."""
 
-import json
-import shutil
-import subprocess
-import sys
+import tempfile
 from pathlib import Path
 
-from .config import load_config
-from .config_accessors import out_dir, project_name, src_dir as config_src_dir
 from .build import (
-    _resolve_script_version,
-    _write_script_js,
-    _minify_static_asset,
     _script_version_hash,
+    _write_script_js,
+)
+from .config import load_config
+from .config_accessors import project_name
+from .init import (
+    DEFAULT_CSS_URL,
+    FAVICON_SVG_URL,
+    SCRIPT_JS_URL,
+    STYLE_CSS_URL,
+    download_file,
+    run_fetch_fonts,
 )
 
 
-def _fetch_remote(repo_root, rel_path):
-    """Fetch a file from the fr-docs repo via git show HEAD:path."""
-    try:
-        return subprocess.check_output(
-            ["git", "show", f"HEAD:{rel_path}"],
-            cwd=repo_root,
-            stderr=subprocess.DEVNULL,
-        ).decode("utf-8", errors="replace")
-    except (subprocess.CalledProcessError, OSError):
-        return None
-
-
-def _git_current_commit(repo_root):
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"],
-            cwd=repo_root,
-            stderr=subprocess.DEVNULL,
-        ).decode("utf-8", errors="replace").strip()
-    except (subprocess.CalledProcessError, OSError):
-        return None
-
-
-def _git_remote_url(repo_root):
-    try:
-        return subprocess.check_output(
-            ["git", "remote", "get-url", "origin"],
-            cwd=repo_root,
-            stderr=subprocess.DEVNULL,
-        ).decode("utf-8", errors="replace").strip()
-    except (subprocess.CalledProcessError, OSError):
-        return None
-
-
-def _is_fr_docs_repo(repo_root):
-    """Return True if the repo is the fr-docs repo itself."""
-    url = _git_remote_url(repo_root) or ""
-    return "omena0/fr-docs" in url.lower()
-
-
 def update_resources(config):
-    """Update script.js, style.css, favicon.svg, and fonts from the fr-docs repo.
+    """Update script.js, style.css, favicon.svg, and fonts from the fr-docs upstream repo.
 
-    Only runs when the current repo is not the fr-docs repo (so we can read
-    the source files from git). For downstream repos, the resources are
-    pulled from PyPI via the `fr-docs` package or copied from the docs/
-    directory.
+    Downloads the latest resources from raw.githubusercontent.com and writes them
+    to the local docs/ directory. For script.js, preserves version numbering
+    by reading the version from the downloaded content.
     """
     docs_path = Path(config["_docs_dir"]).resolve()
-    repo_root = docs_path.parent
-    if _is_fr_docs_repo(repo_root):
-        print("   In the fr-docs repo; skipping remote resource update.")
-        return
-
-    resources = ["script.js", "style.css", "favicon.svg"]
     updated = []
-    for name in resources:
-        rel = f"docs/{name}"
-        remote = _fetch_remote(repo_root, rel)
-        if remote is None:
-            continue
 
-        local_path = docs_path / name
-        if name == "script.js":
-            version, content = _resolve_script_version(repo_root, rel, local_path)
+    # Update script.js
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".js", delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+    try:
+        if download_file(SCRIPT_JS_URL, tmp_path):
+            version, _ = _script_version_hash(tmp_path)
+            content = tmp_path.read_text(encoding="utf-8")
+            local_path = docs_path / "script.js"
             _write_script_js(local_path, version, content)
-            updated.append(f"{name} (v{version})")
-        else:
-            local_path.write_text(remote, encoding="utf-8")
-            updated.append(name)
+            updated.append(f"script.js (v{version})")
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
-    # Update fonts
+    # Update style.css
+    local_style = docs_path / "style.css"
+    if download_file(STYLE_CSS_URL, local_style):
+        updated.append("style.css")
+
+    # Update favicon.svg
+    local_favicon = docs_path / "favicon.svg"
+    if download_file(FAVICON_SVG_URL, local_favicon):
+        updated.append("favicon.svg")
+
+    # Update fonts (download from Google Fonts, generate fonts.css)
     fonts_dir = docs_path / "fonts"
     if fonts_dir.is_dir():
-        remote_fonts = _fetch_remote(repo_root, "docs/fonts")
-        # Can't fetch a directory; instead list remote files via git ls-tree
-        try:
-            out = subprocess.check_output(
-                ["git", "ls-tree", "-r", "--name-only", "HEAD", "docs/fonts"],
-                cwd=repo_root,
-                stderr=subprocess.DEVNULL,
-            ).decode("utf-8", errors="replace")
-            for line in out.splitlines():
-                fname = Path(line).name
-                content = _fetch_remote(repo_root, line)
-                if content is not None:
-                    (fonts_dir / fname).write_text(content, encoding="utf-8")
-                    updated.append(f"fonts/{fname}")
-        except (subprocess.CalledProcessError, OSError):
-            pass
+        old_count = len(list(fonts_dir.iterdir()))
+        result = run_fetch_fonts(docs_path, DEFAULT_CSS_URL)
+        if result == 0:
+            new_count = len(list(fonts_dir.iterdir()))
+            if new_count > old_count:
+                updated.append(f"fonts ({new_count - old_count} new)")
+            else:
+                updated.append("fonts (refreshed)")
 
     if updated:
         print(f"   Updated: {', '.join(updated)}")
@@ -118,7 +75,7 @@ def main(argv=None) -> None:
 
     parser = argparse.ArgumentParser(
         prog="fr-docs update",
-        description="Update fr-docs resources (script.js, style.css, fonts) from the repo.",
+        description="Update fr-docs resources (script.js, style.css, fonts) from upstream.",
     )
     parser.add_argument(
         "--config",

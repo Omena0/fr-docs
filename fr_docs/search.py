@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .config_accessors import feature_enabled
 from .frontmatter import parse_frontmatter
-from .slug import normalize_slug, relative_slug_path, slug_output_name
+from .slug import normalize_slug, slug_output_name
 from .utils import output_href
 
 # Symbol extraction patterns for various languages
@@ -229,18 +229,18 @@ def extract_symbols_from_content(content, language):
             if symbol_type in ("function", "method", "decorator_function") and language == "python":
                 # Find function end by indentation
                 indent_match = re.match(r"^[^\S\n]*", lines[line_num - 1])
-                indent = len(indent_match.group(0)) if indent_match else 0
+                indent = len(indent_match[0]) if indent_match else 0
                 end_line = line_num
+
                 for i in range(line_num, len(lines)):
                     if lines[i].strip():
                         indent_match = re.match(r"^[^\S\n]*", lines[i])
-                        line_indent = len(indent_match.group(0)) if indent_match else 0
+                        line_indent = len(indent_match[0]) if indent_match else 0
                         if line_indent <= indent:
                             end_line = i
                             break
-                        end_line = i + 1
-                    else:
-                        end_line = i + 1
+
+                    end_line = i + 1
 
             symbols.append(
                 {

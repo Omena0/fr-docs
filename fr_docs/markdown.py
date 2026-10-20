@@ -13,7 +13,6 @@ from markdown.extensions.tables import TableExtension
 from .slug import (
     normalize_slug,
     relative_slug_path,
-    slug_output_name,
 )
 from .syntax import URL_ATTR_RE
 
@@ -38,20 +37,17 @@ def _parse_code_location(location):
     location = str(location or "").strip()
     if not location:
         return {}
+
     if re.fullmatch(r"\d+", location):
         return {"line": int(location)}
-    range_match = re.fullmatch(r"(\d+)-(\d+)(?::\d+)?", location)
-    if range_match:
-        return {
-            "line": int(range_match.group(1)),
-            "end_line": int(range_match.group(2)),
-        }
+
+    if range_match := re.fullmatch(r"(\d+)-(\d+)(?::\d+)?", location):
+        return {"line": int(range_match[1]), "end_line": int(range_match[2])}
+
     column_match = re.fullmatch(r"(\d+):(\d+)", location)
     if column_match:
-        return {
-            "line": int(column_match.group(1)),
-            "column": int(column_match.group(2)),
-        }
+        return {"line": int(column_match[1]), "column": int(column_match[2])}
+
     return {"function": location}
 
 
