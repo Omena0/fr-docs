@@ -10,7 +10,6 @@ from .build import (
 from .config import load_config
 from .config_accessors import project_name
 from .init import (
-    DEFAULT_CSS_URL,
     FAVICON_SVG_URL,
     SCRIPT_JS_URL,
     STYLE_CSS_URL,
@@ -56,7 +55,7 @@ def update_resources(config):
     fonts_dir = docs_path / "fonts"
     if fonts_dir.is_dir():
         old_count = len(list(fonts_dir.iterdir()))
-        result = run_fetch_fonts(docs_path, DEFAULT_CSS_URL)
+        result = run_fetch_fonts(docs_path)
         if result == 0:
             new_count = len(list(fonts_dir.iterdir()))
             if new_count > old_count:

@@ -1,3 +1,4 @@
+ #!/usr/bin/env zsh
 
 : Runs lint and checkers
 
