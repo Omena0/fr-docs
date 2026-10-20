@@ -44,4 +44,3 @@ Fr-docs is a generic, configurable documentation builder for Python projects. It
 
 - [Fr-docs](https://omena0.dev/fr-docs/)
 - [PyJavaBridge](https://omena0.dev/PyJavaBridge)
-<sub><sup>(Legacy)</sup></sub>
