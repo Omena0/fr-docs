@@ -53,7 +53,7 @@ def _git_remote_url(repo_root):
 def _is_fr_docs_repo(repo_root):
     """Return True if the repo is the fr-docs repo itself."""
     url = _git_remote_url(repo_root) or ""
-    return "Omena0/fr-docs" in url or "omena0/fr-docs" in url.lower()
+    return "omena0/fr-docs" in url.lower()
 
 
 def update_resources(config):
