@@ -59,15 +59,15 @@ def _is_fr_docs_repo(repo_root):
 def update_resources(config):
     """Update script.js, style.css, favicon.svg, and fonts from the fr-docs repo.
 
-    Only runs when the current repo IS the fr-docs repo (so we can read
+    Only runs when the current repo is not the fr-docs repo (so we can read
     the source files from git). For downstream repos, the resources are
     pulled from PyPI via the `fr-docs` package or copied from the docs/
     directory.
     """
     docs_path = Path(config["_docs_dir"]).resolve()
     repo_root = docs_path.parent
-    if not _is_fr_docs_repo(repo_root):
-        print("   Not the fr-docs repo; skipping remote resource update.")
+    if _is_fr_docs_repo(repo_root):
+        print("   In the fr-docs repo; skipping remote resource update.")
         return
 
     resources = ["script.js", "style.css", "favicon.svg"]
@@ -77,6 +77,7 @@ def update_resources(config):
         remote = _fetch_remote(repo_root, rel)
         if remote is None:
             continue
+
         local_path = docs_path / name
         if name == "script.js":
             version, content = _resolve_script_version(repo_root, rel, local_path)
