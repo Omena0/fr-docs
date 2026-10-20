@@ -293,6 +293,8 @@ jobs:
         uses: Omena0/fr-docs@main
 """
 
+BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
 DEFAULT_CSS_URL = (
     "https://fonts.googleapis.com/css2?"
     "family=Inter:ital,opsz,wght@0,14..32,400..800"
@@ -303,9 +305,10 @@ FONT_FACE_RE = re.compile(
     r"@font-face\s*\{\n"
     r"\s*font-family:\s*['\"](?P<family>[^'\"]+)['\"]\s*;\n"
     r"\s*font-style:\s*(?P<style>\w+)\s*;\n"
-    r"\s*font-weight:\s*(?P<weight>\d+)\s*;\n"
+    r"\s*font-weight:\s*(?P<weight>[\d\s]+)\s*;\n"
     r"\s*font-display:\s*(?P<display>\w+)\s*;\n"
     r"\s*src:\s*url\((?P<src>[^)]+)\)\s*format\(['\"](?P<format>[^'\"]+)['\"]\)\s*;\n"
+    r"(?:\s*unicode-range:\s*(?P<unicode_range>[^;]+);\n)?"
     r"\}"
 )
 
@@ -332,7 +335,7 @@ def download_file(url, dest_path) -> bool:
 
 def fetch_fonts_css(css_url: str) -> str:
     """Fetch Google Fonts CSS text."""
-    req = urllib.request.Request(css_url, headers={"User-Agent": "fr-docs/1.0"})
+    req = urllib.request.Request(css_url, headers={"User-Agent": BROWSER_UA})
     with urllib.request.urlopen(req, timeout=30) as resp:
         return resp.read().decode("utf-8")
 
@@ -342,7 +345,7 @@ def download_font(url: str, dest: Path) -> bool:
     if dest.exists() and dest.stat().st_size > 0:
         return True
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "fr-docs/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": BROWSER_UA})
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = resp.read()
         if len(data) < 1000:
@@ -371,11 +374,18 @@ def run_fetch_fonts(docs_dir: Path, css_url: str = DEFAULT_CSS_URL) -> int:
     print(f"Found {len(faces)} font-face rules")
 
     local_rules = []
-    for family, style, weight, _display, src_url, fmt in faces:
+    seen = set()
+    for family, style, weight, _display, src_url, fmt, _unicode_range in faces:
         src_url = src_url.strip().strip("'\"")
         fname = Path(src_url.split("?")[0]).name
         if not fname:
             continue
+        # De-duplicate: woff2 serves one file per unicode-range subset; keep the
+        # first occurrence per (family, weight, style) which is the latin block.
+        key = (family, weight, style)
+        if key in seen:
+            continue
+        seen.add(key)
         dest = out_dir / fname
         print(f"  {family} {weight} {style} -> {fname}")
         if not download_font(src_url, dest):

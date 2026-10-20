@@ -569,6 +569,9 @@ def main(argv=None) -> None:
     if fonts_dir.is_dir():
         out_fonts = Path(config["_out_dir"]) / "fonts"
         out_fonts.mkdir(parents=True, exist_ok=True)
+        for stale in out_fonts.iterdir():
+            if stale.is_file():
+                stale.unlink()
         for f in fonts_dir.iterdir():
             if f.is_file():
                 shutil.copy2(f, out_fonts / f.name)
