@@ -1,6 +1,7 @@
 name: Build and Deploy fr-docs Site
 description: >-
   Build a documentation site using fr-docs and deploy it to GitHub Pages.
+
 inputs:
   python-version:
     description: 'Python version for fr-docs'
@@ -18,10 +19,11 @@ inputs:
     description: 'Output directory for the built site'
     required: false
     default: 'docs/site'
+
 runs:
   using: composite
   steps:
-    - name: Prepare dependency manifests
+    - name: Prepare Python dependency manifest
       shell: bash
       run: |
         mkdir -p .fr-docs
@@ -31,48 +33,70 @@ runs:
         xxhash>=4.0.1
         zstandard
         EOF
-        cat > .fr-docs/package.json <<'EOF'
-        {
-          "name": "fr-docs-build",
-          "private": true,
-          "devDependencies": {
-            "html-minifier-next": "8.5.3",
-            "critical": "9.0.0",
-            "terser": "5.24.0"
-          }
-        }
-        EOF
+
     - name: Setup Python
       uses: actions/setup-python@v7
       with:
         python-version: ${{ inputs.python-version }}
-        cache: 'pip'
-        cache-dependency-path: '.fr-docs/requirements.txt'
+        cache: pip
+        cache-dependency-path: .fr-docs/requirements.txt
+
     - name: Install Python dependencies
       shell: bash
       run: pip install -r .fr-docs/requirements.txt
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
-        cache: 'npm'
-        cache-dependency-path: '.fr-docs/package.json'
-    - name: Install Node.js tools
+
+    - name: Install Node.js tools from fr-docs package.json
       shell: bash
-      run: npm install --no-audit --no-fund
+      run: |
+        mapfile -t npm_packages < <(
+          node -e '
+            const manifest = require(process.argv[1]);
+            const dependencies = {
+              ...(manifest.dependencies ?? {}),
+              ...(manifest.devDependencies ?? {}),
+            };
+
+            for (const [name, version] of Object.entries(dependencies)) {
+              console.log(`${name}@${version}`);
+            }
+          ' "$GITHUB_ACTION_PATH/package.json"
+        )
+
+        if ((${#npm_packages[@]} == 0)); then
+          echo "::error::No npm dependencies found in fr-docs package.json"
+          exit 1
+        fi
+
+        npm install \
+          --prefix "$GITHUB_WORKSPACE" \
+          --no-save \
+          --no-package-lock \
+          --no-audit \
+          --no-fund \
+          "${npm_packages[@]}"
+
     - name: Install fr-docs
       shell: bash
-      run: pip install .
+      run: pip install "$GITHUB_ACTION_PATH"
+
     - name: Build docs site
       shell: bash
       working-directory: ${{ inputs.docs-dir }}
       run: python -m fr_docs build --production
+
     - name: Configure GitHub Pages
       uses: actions/configure-pages@v5
+
     - name: Upload Pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
         path: ${{ inputs.output-dir }}
+
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
