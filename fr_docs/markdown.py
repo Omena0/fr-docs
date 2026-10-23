@@ -108,6 +108,19 @@ def _extract_footnote_definitions(md_text):
     return definitions
 
 
+def _add_footnote_commas(html_text):
+    """Add commas between consecutive footnote reference links.
+
+    ``[^tag1][^tag2]`` renders as ``<a>2</a><a>3</a>`` which reads as "23";
+    insert a comma so it reads "2,3".
+    """
+    return re.sub(
+        r'(<sup>\d+</sup></a>)(<a href="#fnref-[^"]+" class="footnote-ref">)',
+        r'\1,\2',
+        html_text,
+    )
+
+
 def process_footnotes(md_text):
     """Process footnote definitions and references.
 
@@ -143,13 +156,29 @@ def process_footnotes(md_text):
             )
         return f'<a href="#fnref-{tag}" class="footnote-ref"><sup>{idx}</sup></a>'
 
-    # Remove definition lines from text before returning processed text
+    # Replace footnote references [^tag] with HTML links
     processed_text = FOOTNOTE_REF_RE.sub(_repl, md_text)
-    # Remove footnote definition lines (both inline and standalone)
+
+    # Only remove definition lines for tags that are actually footnote tags
+    # (referenced with [^tag]). Keep standard markdown reference link
+    # definitions ([ref]: URL ...) intact so [text][ref] links resolve.
+    footnote_ref_tags = set(FOOTNOTE_REF_RE.findall(md_text))
+
+    def _remove_fn_def(m):
+        tag = m.group(1)
+        if tag in footnote_ref_tags:
+            return ""
+        return m.group(0)
+
     processed_text = re.sub(
-        r"(?m)^\[([^\]]+)\]:\s*\S+.*(?:\n?)$", "", processed_text
+        r"(?m)^\[([^\]]+)\]:\s*\S+.*(?:\n?)$",
+        _remove_fn_def,
+        processed_text,
     )
     processed_text = re.sub(r"\n{3,}", "\n\n", processed_text)
+
+    # Add commas between consecutive footnote references
+    processed_text = _add_footnote_commas(processed_text)
 
     return processed_text, footnotes
 

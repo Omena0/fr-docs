@@ -62,9 +62,9 @@ def _best_zstd_level(raw: bytes, configured: int) -> int:
     if len(raw) < 1024:
         return min(configured, 19)
 
-    best_level, best_size = 1, len(zstandard.ZstdCompressor(level=1).compress(raw))
+    best_level, best_size = 1, len(zstandard.ZstdCompressor(level=1, threads=16).compress(raw))
     for level in range(2, configured + 1):
-        size = len(zstandard.ZstdCompressor(level=level).compress(raw))
+        size = len(zstandard.ZstdCompressor(level=level, threads=16).compress(raw))
         if size < best_size:
             best_level, best_size = level, size
     return best_level
@@ -307,7 +307,7 @@ def _write_zstd_json(config, filename, value):
             return len(raw), src.stat().st_size
 
     compressed = zstandard.ZstdCompressor(
-        level=_best_zstd_level(raw, zstd_level(config))
+        level=_best_zstd_level(raw, zstd_level(config)), threads=16
     ).compress(raw)
     path = Path(config["_out_dir"]) / filename
     path.write_bytes(compressed)
@@ -674,7 +674,7 @@ def main(argv=None) -> None:
     # Compress search index
     search_raw = json.dumps(search_index, separators=(",", ":")).encode("utf-8")
     compressed = zstandard.ZstdCompressor(
-        level=_best_zstd_level(search_raw, zstd_level(config))
+        level=_best_zstd_level(search_raw, zstd_level(config)), threads=16
     ).compress(search_raw)
     search_index_path = Path(config["_out_dir"], search_index_filename(config))
     search_index_path.parent.mkdir(parents=True, exist_ok=True)
@@ -732,7 +732,7 @@ def main(argv=None) -> None:
                     "utf-8"
                 )
                 compressed = zstandard.ZstdCompressor(
-                    level=_best_zstd_level(raw, zstd_level(config))
+                    level=_best_zstd_level(raw, zstd_level(config)), threads=16
                 ).compress(raw)
                 highlight_cache_file.parent.mkdir(parents=True, exist_ok=True)
                 highlight_cache_file.write_bytes(compressed)
