@@ -7,6 +7,7 @@ Converts Markdown source files into a static HTML site using configuration.
 import argparse
 import concurrent.futures
 import contextlib
+import datetime
 import glob
 import json
 import os
@@ -27,6 +28,7 @@ from .config_accessors import (
     project_name,
     search_index_filename,
     sidebar,
+    site_url,
     workers,
     zstd_level,
 )
@@ -41,7 +43,7 @@ from .slug import (
     slug_output_name,
 )
 from .syntax import highlight_source_lines
-from .utils import normalized_site_prefix
+from .utils import canonical_url, normalized_site_prefix
 
 
 def _compute_hash(data: str) -> str:
@@ -457,6 +459,76 @@ def collect_source_files(config):
     return source_files
 
 
+def _build_sitemap_urls(slugs, config):
+    """Build a list of canonical sitemap URLs for all pages.
+
+    Each URL ends with a trailing slash so it matches the canonical URL
+    served by static hosting (e.g. GitHub Pages rewrites ``/fr-os`` to
+    ``/fr-os/``, and a sitemap URL without the trailing slash would
+    trigger a redirect — which Google rejects).
+    """
+    site_url_val = site_url(config) or ""
+    if not site_url_val:
+        return []
+
+    urls = []
+    for slug in slugs:
+        canonical = canonical_url(slug, config)
+        if canonical:
+            urls.append(canonical)
+    return urls
+
+
+def _write_sitemap(slugs, config):
+    """Write sitemap.xml to the output directory.
+
+    Only generated when ``site_url`` is configured; otherwise there is
+    no canonical origin to report to crawlers.
+    """
+    if not config.get("production", False):
+        return
+    site_url_val = site_url(config) or ""
+    out_dir = Path(config["_out_dir"])
+    sitemap_path = out_dir / "sitemap.xml"
+
+    if not site_url_val:
+        sitemap_path.unlink(missing_ok=True)
+        return
+
+    urls = _build_sitemap_urls(slugs, config)
+    now = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        *[f"  <url><loc>{url}</loc><lastmod>{now}</lastmod></url>" for url in urls],
+        "</urlset>",
+    ]
+
+    sitemap_path.write_text("\n".join(parts), encoding="utf-8")
+    print(f"   Sitemap: {len(urls)} URLs → sitemap.xml")
+
+
+def _write_robots(config):
+    """Write robots.txt to the output directory.
+
+    If ``docs/robots.txt`` exists it is copied verbatim. Otherwise a
+    default permissive policy is written to ``site/robots.txt``.
+    """
+    out_dir = Path(config["_out_dir"])
+    docs_path = Path(config["_docs_dir"])
+    robots_path = out_dir / "robots.txt"
+
+    src_robots = docs_path / "robots.txt"
+    if src_robots.is_file():
+        shutil.copyfile(src_robots, robots_path)
+        print("   robots.txt: copied from docs/")
+        return
+
+    robots_path.write_text("User-agent: *\nAllow: /\n", encoding="utf-8")
+    print("   robots.txt: default allow-all")
+
+
 def main(argv=None) -> None:
     if argv is not None and argv and argv[0] == "build":
         argv = argv[1:]
@@ -528,6 +600,7 @@ def main(argv=None) -> None:
         "symbol_index.json",
     ):
         Path(config["_out_dir"], legacy_name).unlink(missing_ok=True)
+
     for name in ("favicon.svg", "fonts.css", "style.css"):
         src = docs_path / name
         dst = Path(config["_out_dir"]) / name
@@ -793,9 +866,16 @@ def main(argv=None) -> None:
                             link_path.unlink()
                     link_path.symlink_to(f.resolve())
                     symlinked += 1
-                print(f"   ✓ Symlinked {symlinked} files into {prefix}/")
+                gitignore_path = prefix_dir / ".gitignore"
+                gitignore_path.write_text("*\n!.gitignore\n", encoding="utf-8")
+                print(f"   ✓ Created .gitignore in {prefix}/")
             except OSError as e:
                 print(f"   ✗ Failed to create {prefix}/ symlinks: {e}")
+
+    # Generate sitemap.xml and robots.txt for production builds
+    if config.get("production", False):
+        _write_sitemap(slugs, config)
+        _write_robots(config)
 
     print(f"\n✅ Built {built} pages")
 

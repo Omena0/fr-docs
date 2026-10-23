@@ -30,8 +30,10 @@ from .frontmatter import parse_frontmatter
 from .markdown import (
     auto_link_filenames,
     auto_link_markdown,
+    build_footnotes_html,
     convert_markdown,
     process_code_references_html,
+    process_footnotes,
     rewrite_md_links,
 )
 from .search import search_include_config
@@ -221,14 +223,10 @@ def minify_html(html_input, config):
     cmd = [
         "npx",
         "html-minifier-next",
-        "--minify-css",
-        "true",
-        "--minify-js",
-        "true",
-        "--minify-svg",
-        "true",
-        "--minify-urls",
-        "true",
+        "--minify-css", "true",
+        "--minify-js", "true",
+        "--minify-svg", "true",
+        "--minify-urls", "true",
         "--remove-attribute-quotes",
         "--collapse-whitespace",
         "--remove-tag-whitespace",
@@ -328,6 +326,9 @@ def build_page(slug, config, slug_page_keys) -> None:
     if config.get("search_map") and feature_enabled(config, "auto_link"):
         body_md = auto_link_markdown(body_md, config["search_map"])
 
+    # Process footnote definitions and references before markdown conversion
+    body_md, footnotes = process_footnotes(body_md)
+
     body_html, toc_tokens = convert_markdown(body_md)
     body_html = rewrite_md_links(body_html, slug, slug_page_keys)
 
@@ -344,6 +345,11 @@ def build_page(slug, config, slug_page_keys) -> None:
     body_html, _backlinks_html, _related_html = _render_backlinks_and_related(
         body_md, body_html, slug, config, search_index
     )
+
+    # Append footnotes section before footer
+    footnotes_html = build_footnotes_html(footnotes)
+    if footnotes_html:
+        body_html += footnotes_html
 
     subtitle_html = f'<p class="subtitle">{subtitle}</p>' if subtitle else ""
     tagged_sections = _determine_tagged_sections(config)

@@ -203,6 +203,21 @@ def project_url(config):
     return config.get("project_url", "")
 
 
+def site_url(config):
+    """Return the canonical site URL (with trailing slash).
+
+    Used to build sitemap URLs. Must be explicitly configured in
+    ``config.json`` as ``"site_url": "https://example.com/"``.
+    Falls back to empty string when not set.
+    """
+    url = str(config.get("site_url", "")).strip()
+    if not url:
+        return ""
+    if not url.endswith("/"):
+        url += "/"
+    return url
+
+
 def src_map_path(config) -> str:
     """Return the source markdown path pattern used in git metadata."""
     return f"{src_dir(config)}/{{slug}}.md"

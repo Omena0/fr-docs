@@ -20,6 +20,12 @@ _DECORATORS_DEST = "decorators"
 
 _MD_LOCAL = threading.local()
 
+# Footnote reference pattern: [^tag]
+FOOTNOTE_REF_RE = re.compile(r"\[\^([^\]]+)\]")
+
+# Footnote definition pattern: [tag]: URL "title"
+FOOTNOTE_DEF_RE = re.compile(r"^\[([^\]]+)\]:\s*(\S+)(?:\s+\"([^\"]*)\")?\s*$", re.MULTILINE)
+
 CODE_REF_TARGET = r"(?::(?P<location>[^)]+))?"
 CODE_REF_RE = re.compile(
     r"\[(?P<link_text>[^\]]+)\]\((?P<file>[a-zA-Z0-9_./\\-]+\.(?:py|js|ts|tsx|jsx|java|cpp|c|h|hpp|rs|go|rb|php|cs|kt|swift|scala|clj|hs|ml|fs|vim|sh|bash|zsh|fish|ps1|bat|cmd|sql|xml|json|yaml|yml|toml|ini|cfg|conf|css|scss|sass|less|styl|vue|svelte|astro|mdx))"
@@ -85,6 +91,91 @@ def convert_markdown(text):
     toc_tokens = getattr(md, "toc_tokens", [])
     md.reset()
     return html_out, toc_tokens
+
+
+def _extract_footnote_definitions(md_text):
+    """Extract footnote definitions from markdown text.
+
+    Definitions look like: [tag]: https://example.com/ "Title"
+    Returns a dict mapping tag -> {"url": ..., "title": ...}
+    """
+    definitions = {}
+    for m in FOOTNOTE_DEF_RE.finditer(md_text):
+        tag = m.group(1).strip()
+        url = m.group(2)
+        title = (m.group(3) or "").strip()
+        definitions[tag] = {"url": url, "title": title}
+    return definitions
+
+
+def process_footnotes(md_text):
+    """Process footnote definitions and references.
+
+    Converts ``[^tag]`` references into superscript links:
+        <a href="url" class="footnote-ref"><sup>n</sup></a>
+
+    Returns tuple of (processed_text, footnotes) where footnotes is a list
+    of {tag, url, title, index} dicts in reference order.
+    """
+    definitions = _extract_footnote_definitions(md_text)
+    if not definitions:
+        return md_text, []
+
+    footnotes = []
+    footnote_counter = {}
+
+    def _repl(m):
+        tag = m.group(1).strip()
+        if tag not in definitions:
+            return m.group(0)
+        if tag not in footnote_counter:
+            footnote_counter[tag] = len(footnotes) + 1
+        idx = footnote_counter[tag]
+        # Avoid duplicate entries for the same tag
+        if not any(fn["tag"] == tag for fn in footnotes):
+            footnotes.append(
+                {
+                    "tag": tag,
+                    "url": definitions[tag]["url"],
+                    "title": definitions[tag]["title"],
+                    "index": idx,
+                }
+            )
+        return f'<a href="#fnref-{tag}" class="footnote-ref"><sup>{idx}</sup></a>'
+
+    # Remove definition lines from text before returning processed text
+    processed_text = FOOTNOTE_REF_RE.sub(_repl, md_text)
+    # Remove footnote definition lines (both inline and standalone)
+    processed_text = re.sub(
+        r"(?m)^\[([^\]]+)\]:\s*\S+.*(?:\n?)$", "", processed_text
+    )
+    processed_text = re.sub(r"\n{3,}", "\n\n", processed_text)
+
+    return processed_text, footnotes
+
+
+def build_footnotes_html(footnotes):
+    """Build the footnotes HTML section for a page.
+
+    The section is appended before the footer content in the page body.
+    """
+    if not footnotes:
+        return ""
+    items = []
+    for fn in footnotes:
+        title = fn.get("title") or fn.get("url") or ""
+        items.append(
+            f'<li id="fnref-{fn.get("tag")}" class="footnote-item">'
+            f'<a href="{fn.get("url")}" class="footnote-link" title="{html.escape(title)}">'
+            f"{html.escape(title)}</a></li>"
+        )
+    inner = "".join(items)
+    return (
+        '<div class="footnotes">'
+        '<h2 class="footnotes-heading">Footnotes</h2>'
+        f'<ol class="footnotes-list">{inner}</ol>'
+        "</div>"
+    )
 
 
 def resolve_md_target(md_target, current_slug, slug_page_keys):

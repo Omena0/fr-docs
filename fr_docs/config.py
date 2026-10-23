@@ -11,6 +11,7 @@ DEFAULT_CONFIG = {
     "project_name": "Project Name",
     "copyright_holder": "CHANGE_ME",
     "project_url": "",
+    "site_url": "",
     "site_path_prefix": "/",
     "src_dir": "src",
     "out_dir": "site",
