@@ -4,7 +4,7 @@
   "private": true,
   "version": "1.0.0",
   "devDependencies": {
-    "html-minifier-next": "8.10.8",
+    "html-minifier-next": "9.0.0",
     "critical": "9.0.0",
     "terser": "5.51.2"
   }
