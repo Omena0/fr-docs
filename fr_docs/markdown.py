@@ -127,8 +127,9 @@ def process_footnotes(md_text):
     Converts ``[^tag]`` references into superscript links:
         <a href="url" class="footnote-ref"><sup>n</sup></a>
 
-    Returns tuple of (processed_text, footnotes) where footnotes is a list
-    of {tag, url, title, index} dicts in reference order.
+    Returns tuple of (processed_text, references) where references is a list
+    of {tag, url, title, index} dicts for ALL definitions that have a title,
+    in first-use order (footnote references first, then unused definitions).
     """
     definitions = _extract_footnote_definitions(md_text)
     if not definitions:
@@ -136,6 +137,7 @@ def process_footnotes(md_text):
 
     footnotes = []
     footnote_counter = {}
+    footnote_order = {}
 
     def _repl(m):
         tag = m.group(1).strip()
@@ -144,7 +146,7 @@ def process_footnotes(md_text):
         if tag not in footnote_counter:
             footnote_counter[tag] = len(footnotes) + 1
         idx = footnote_counter[tag]
-        # Avoid duplicate entries for the same tag
+        footnote_order[tag] = idx
         if not any(fn["tag"] == tag for fn in footnotes):
             footnotes.append(
                 {
@@ -180,28 +182,52 @@ def process_footnotes(md_text):
     # Add commas between consecutive footnote references
     processed_text = _add_footnote_commas(processed_text)
 
-    return processed_text, footnotes
+    # Build references list: all definitions with titles, in first-use order
+    references = []
+    used_indices = set()
+
+    # Add footnote-used tags that have titles, in first-use order
+    for tag, idx in sorted(footnote_order.items(), key=lambda kv: kv[1]):
+        if tag in definitions and definitions[tag]["title"]:
+            d = definitions[tag]
+            references.append(
+                {"tag": tag, "url": d["url"], "title": d["title"], "index": idx}
+            )
+            used_indices.add(tag)
+
+    # Add unused definitions that have titles (in definition order)
+    for tag, d in definitions.items():
+        if tag not in used_indices and d["title"]:
+            references.append(
+                {"tag": tag, "url": d["url"], "title": d["title"], "index": len(references) + 1}
+            )
+
+    return processed_text, references
 
 
-def build_footnotes_html(footnotes):
-    """Build the footnotes HTML section for a page.
+def build_footnotes_html(references):
+    """Build the references HTML section for a page.
 
     The section is appended before the footer content in the page body.
+    References includes all footnote definitions that have titles, renamed
+    from the previous "Footnotes" heading.
     """
-    if not footnotes:
+    if not references:
         return ""
     items = []
-    for fn in footnotes:
-        title = fn.get("title") or fn.get("url") or ""
+    for ref in references:
+        title = ref.get("title") or ""
+        if not title:
+            continue
         items.append(
-            f'<li id="fnref-{fn.get("tag")}" class="footnote-item">'
-            f'<a href="{fn.get("url")}" class="footnote-link" title="{html.escape(title)}">'
+            f'<li id="fnref-{ref.get("tag")}" class="footnote-item">'
+            f'<a href="{ref.get("url")}" class="footnote-link" title="{html.escape(title)}">'
             f"{html.escape(title)}</a></li>"
         )
     inner = "".join(items)
     return (
         '<div class="footnotes">'
-        '<h2 class="footnotes-heading">Footnotes</h2>'
+        '<h2 class="footnotes-heading">References</h2>'
         f'<ol class="footnotes-list">{inner}</ol>'
         "</div>"
     )
