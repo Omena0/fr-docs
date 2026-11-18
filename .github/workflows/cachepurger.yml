@@ -1,0 +1,23 @@
+name: Cachepurger
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  bust-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Run cachepurger
+      uses: cyrusroshan/cachepurger@master
+      with:
+        # Replace with the base URL this repo is published to
+        url-prefix: 'https://omena0.dev/fr-docs/'
+        zone-id: ${{ secrets.CF_ZONE_ID }}
+        api-token: ${{ secrets.CF_API_TOKEN }}
