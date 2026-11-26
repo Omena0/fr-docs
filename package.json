@@ -6,6 +6,6 @@
   "devDependencies": {
     "html-minifier-next": "8.10.8",
     "critical": "9.0.0",
-    "terser": "5.51.2"
+    "terser": "5.51.4"
   }
 }
